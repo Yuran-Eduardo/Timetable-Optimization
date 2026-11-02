@@ -1,0 +1,21 @@
+Curso;Unidade de execução;Turno;Turma;Inscritos no turno;Dia da Semana;Início;Fim;Dia;Características da sala pedida para a aula;Sala da aula;Lotação;Características reais da sala
+SINTETICO;Algoritmos;ALG1;G1;24;Seg;08:00:00;09:30:00;02/11/2026;Sala/anfiteatro aulas;;;
+SINTETICO;Algoritmos;ALG1;G1;24;Qua;08:00:00;09:30:00;04/11/2026;Sala/anfiteatro aulas;;;
+SINTETICO;Bases de Dados;BD1;G1;18;Ter;09:00:00;10:30:00;03/11/2026;Laboratório de Informática;;;
+SINTETICO;Matemática;MAT1;G1, G2;28;Qui;10:00:00;11:30:00;05/11/2026;Sala de Aulas normal;;;
+SINTETICO;Projeto;P1;G1;0;Sex;11:00:00;12:30:00;06/11/2026;Sala de Aulas normal;;;
+SINTETICO;Redes;RED1;G2;35;Seg;13:00:00;14:30:00;02/11/2026;Sala de Aulas normal;;;
+SINTETICO;Redes;RED1;G2;35;Qua;13:00:00;14:30:00;04/11/2026;Sala de Aulas normal;;;
+SINTETICO;Estudo;E1;G2;15;Ter;15:00:00;16:30:00;03/11/2026;Não necessita de sala;;;
+SINTETICO;Seminário;SEM1;G3;16;Qui;18:00:00;22:00:00;05/11/2026;Sala de Aulas normal;;;
+SINTETICO;Seminário;SEM1;G3;16;Sex;18:00:00;19:30:00;06/11/2026;Sala de Aulas normal;;;
+SINTETICO;Algoritmos;ALG1;G1;24;Seg;08:00:00;09:30:00;09/11/2026;Sala/anfiteatro aulas;;;
+SINTETICO;Algoritmos;ALG1;G1;24;Qua;08:00:00;09:30:00;11/11/2026;Sala/anfiteatro aulas;;;
+SINTETICO;Bases de Dados;BD1;G1;18;Ter;09:00:00;10:30:00;10/11/2026;Laboratório de Informática;;;
+SINTETICO;Matemática;MAT1;G1, G2;28;Qui;10:00:00;11:30:00;12/11/2026;Sala de Aulas normal;;;
+SINTETICO;Projeto;P1;G1;0;Sex;11:00:00;12:30:00;13/11/2026;Sala de Aulas normal;;;
+SINTETICO;Redes;RED1;G2;35;Seg;13:00:00;14:30:00;09/11/2026;Sala de Aulas normal;;;
+SINTETICO;Redes;RED1;G2;35;Qua;13:00:00;14:30:00;11/11/2026;Sala de Aulas normal;;;
+SINTETICO;Estudo;E1;G2;15;Ter;15:00:00;16:30:00;10/11/2026;Não necessita de sala;;;
+SINTETICO;Seminário;SEM1;G3;16;Qui;18:00:00;22:00:00;12/11/2026;Sala de Aulas normal;;;
+SINTETICO;Seminário;SEM1;G3;16;Sex;18:00:00;19:30:00;13/11/2026;Sala de Aulas normal;;;

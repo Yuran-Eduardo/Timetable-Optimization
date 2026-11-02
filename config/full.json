@@ -1,0 +1,52 @@
+{
+  "scenario": "dados-completos-26019-diagnostico",
+  "synthetic": false,
+  "scheduleFile": "../data/originais/horario-com-salas.csv",
+  "roomsFile": "../data/originais/salas.csv",
+  "policyFile": "compatibilidade-salas.json",
+  "horizonStart": "2022-08-29",
+  "horizonEnd": "2023-06-11",
+  "openingMinute": 480,
+  "closingMinute": 1380,
+  "gridMinutes": 30,
+  "allowedDays": [
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY"
+  ],
+  "closedDates": [],
+  "unavailableDatesReviewed": false,
+  "classIdentifiersReviewed": false,
+  "multipleProfilesMode": null,
+  "profileDefinitions": {
+    "Manhã": {
+      "start": "08:00",
+      "end": "13:00"
+    },
+    "Tarde": {
+      "start": "13:00",
+      "end": "18:00"
+    },
+    "Noite": {
+      "start": "18:00",
+      "end": "22:30"
+    }
+  },
+  "profilesByClass": {},
+  "populationSize": 20,
+  "maxEvaluations": 100,
+  "independentRuns": 2,
+  "numberOfCores": 1,
+  "problemSizes": [
+    26019
+  ],
+  "softWeights": {
+    "preferred": 0.0,
+    "gaps": 1.0,
+    "seats": 1.0
+  },
+  "allowIncompleteData": true
+}

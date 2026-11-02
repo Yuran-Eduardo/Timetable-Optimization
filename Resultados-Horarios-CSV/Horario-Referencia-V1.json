@@ -1,0 +1,74 @@
+{
+  "version": "V1",
+  "csv": "Horario-Referencia-V1.csv",
+  "execution": "20261101-231434-879",
+  "referenceOnly": true,
+  "status": "COMPLETE_COVERAGE_WITH_VIOLATIONS",
+  "configuration": {
+    "scenario": "dados-completos-26019-diagnostico",
+    "synthetic": false,
+    "scheduleFile": "../data/originais/horario-com-salas.csv",
+    "roomsFile": "../data/originais/salas.csv",
+    "policyFile": "compatibilidade-salas.json",
+    "horizonStart": "2022-08-29",
+    "horizonEnd": "2023-06-11",
+    "openingMinute": 480,
+    "closingMinute": 1380,
+    "gridMinutes": 30,
+    "allowedDays": [
+      "WEDNESDAY",
+      "TUESDAY",
+      "THURSDAY",
+      "FRIDAY",
+      "SATURDAY",
+      "MONDAY"
+    ],
+    "closedDates": [],
+    "unavailableDatesReviewed": false,
+    "classIdentifiersReviewed": false,
+    "multipleProfilesMode": null,
+    "profileDefinitions": {
+      "Manhã": {
+        "start": "08:00:00",
+        "end": "13:00:00"
+      },
+      "Tarde": {
+        "start": "13:00:00",
+        "end": "18:00:00"
+      },
+      "Noite": {
+        "start": "18:00:00",
+        "end": "22:30:00"
+      }
+    },
+    "profilesByClass": {},
+    "populationSize": 20,
+    "maxEvaluations": 100,
+    "independentRuns": 2,
+    "numberOfCores": 1,
+    "problemSizes": [
+      26019
+    ],
+    "softWeights": {
+      "preferred": 0.0,
+      "gaps": 1.0,
+      "seats": 1.0
+    },
+    "allowIncompleteData": true
+  },
+  "summary": {
+    "occurrences": 26019,
+    "unassignedRooms": 672,
+    "softPenalty": 0.21200423631476253,
+    "selection": "Minimum objective 0, then objective 1, among native results of the largest instance",
+    "unassessedPreferences": 26019,
+    "fullyEvaluable": false,
+    "hardViolations": 14391.0,
+    "incompleteOccurrences": 62
+  },
+  "inputSha256": {
+    "data/originais/horario-com-salas.csv": "e1ea82855ce26d8c83f9405f647a1f827a0d43f17de1339ad481b85bcac2f41c",
+    "data/originais/salas.csv": "5f9a529a5bc51f4d038bb7cb606f19c14d580c8e9127c73bb4e4310fd32f6567"
+  },
+  "csvSha256": "c61f884973f47350307a1f1d37d3d9d11de9a9c9319470155fd494919d1d5294"
+}

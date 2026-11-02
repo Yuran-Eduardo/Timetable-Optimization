@@ -1,0 +1,64 @@
+{
+  "scenario": "demonstracao-sintetica",
+  "synthetic": true,
+  "scheduleFile": "../data/sinteticos/horario.csv",
+  "roomsFile": "../data/sinteticos/salas.csv",
+  "policyFile": "compatibilidade-salas.json",
+  "horizonStart": "2026-11-02",
+  "horizonEnd": "2026-11-14",
+  "openingMinute": 480,
+  "closingMinute": 1380,
+  "gridMinutes": 30,
+  "allowedDays": [
+    "MONDAY",
+    "TUESDAY",
+    "WEDNESDAY",
+    "THURSDAY",
+    "FRIDAY",
+    "SATURDAY"
+  ],
+  "closedDates": [],
+  "unavailableDatesReviewed": true,
+  "classIdentifiersReviewed": true,
+  "multipleProfilesMode": "SEPARATE_PERIODS",
+  "profileDefinitions": {
+    "Manhã": {
+      "start": "08:00",
+      "end": "13:00"
+    },
+    "Tarde": {
+      "start": "13:00",
+      "end": "18:00"
+    },
+    "Noite": {
+      "start": "18:00",
+      "end": "22:30"
+    }
+  },
+  "profilesByClass": {
+    "G1": [
+      "Manhã"
+    ],
+    "G2": [
+      "Manhã",
+      "Tarde"
+    ],
+    "G3": [
+      "Noite"
+    ]
+  },
+  "populationSize": 100,
+  "maxEvaluations": 1000,
+  "independentRuns": 3,
+  "numberOfCores": 1,
+  "problemSizes": [
+    5,
+    10,
+    20
+  ],
+  "softWeights": {
+    "preferred": 1.0,
+    "gaps": 1.0,
+    "seats": 1.0
+  }
+}

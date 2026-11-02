@@ -1,0 +1,11 @@
+* text=auto
+*.java text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.xml text eol=lf
+*.ps1 text eol=lf
+*.cmd text eol=crlf
+# Preserve source/reference bytes and checksums on every operating system.
+*.csv -text whitespace=cr-at-eol
+*.pdf binary
+*.png binary

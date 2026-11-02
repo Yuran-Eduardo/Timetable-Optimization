@@ -1,0 +1,4 @@
+Edifício;Nome sala;Capacidade Normal;Capacidade Exame;Nº características;Sala de Aulas normal;Anfiteatro aulas;Laboratório de Informática
+SINTETICO;SINT-R1;30;15;1;X;;
+SINTETICO;SINT-R2;60;30;2;X;X;
+SINTETICO;SINT-LAB;20;10;1;;;X

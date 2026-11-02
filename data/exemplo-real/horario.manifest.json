@@ -1,0 +1,418 @@
+{
+  "scope": "REAL_SUBSET_NOT_FULL_INSTANCE",
+  "source": "data/originais/horario-com-salas.csv",
+  "sourceSha256": "e1ea82855ce26d8c83f9405f647a1f827a0d43f17de1339ad481b85bcac2f41c",
+  "subsetSha256": "fa5169db74566d5faecdb556437bba0c813eab24729c250463cb2dcbd6318db3",
+  "selection": {
+    "group": "MEA1",
+    "horizonStart": "2022-09-12",
+    "horizonEnd": "2022-12-04",
+    "rule": "All source rows containing group MEA1"
+  },
+  "sourceOccurrences": 26019,
+  "selectedOccurrences": 98,
+  "outsideScopeOccurrences": 25921,
+  "allSelectedRowsUnchanged": true,
+  "roomCatalog": "All 131 original rooms; original normal capacities; approved policy only",
+  "externalRoomOccupancy": "Not modelled: this is an isolated subproblem, not a reservation in the full timetable",
+  "experimentalAssumptions": {
+    "profile": "Tarde (13:00-18:00), chosen for this experiment, not an official preference",
+    "calendar": "Monday-Saturday 08:00-23:00; no additional closures in this experimental horizon",
+    "classIdentity": "Literal CSV group tokens MEA1 and MEPB1; shared lessons remain single occurrences; external lessons are outside scope",
+    "multipleProfiles": "Separate periods; only one profile used here"
+  },
+  "rows": [
+    {
+      "exampleCsvRow": 2,
+      "originalCsvRow": 2
+    },
+    {
+      "exampleCsvRow": 3,
+      "originalCsvRow": 3
+    },
+    {
+      "exampleCsvRow": 4,
+      "originalCsvRow": 4
+    },
+    {
+      "exampleCsvRow": 5,
+      "originalCsvRow": 5
+    },
+    {
+      "exampleCsvRow": 6,
+      "originalCsvRow": 6
+    },
+    {
+      "exampleCsvRow": 7,
+      "originalCsvRow": 7
+    },
+    {
+      "exampleCsvRow": 8,
+      "originalCsvRow": 8
+    },
+    {
+      "exampleCsvRow": 9,
+      "originalCsvRow": 9
+    },
+    {
+      "exampleCsvRow": 10,
+      "originalCsvRow": 10
+    },
+    {
+      "exampleCsvRow": 11,
+      "originalCsvRow": 11
+    },
+    {
+      "exampleCsvRow": 12,
+      "originalCsvRow": 12
+    },
+    {
+      "exampleCsvRow": 13,
+      "originalCsvRow": 13
+    },
+    {
+      "exampleCsvRow": 14,
+      "originalCsvRow": 14
+    },
+    {
+      "exampleCsvRow": 15,
+      "originalCsvRow": 15
+    },
+    {
+      "exampleCsvRow": 16,
+      "originalCsvRow": 16
+    },
+    {
+      "exampleCsvRow": 17,
+      "originalCsvRow": 17
+    },
+    {
+      "exampleCsvRow": 18,
+      "originalCsvRow": 18
+    },
+    {
+      "exampleCsvRow": 19,
+      "originalCsvRow": 19
+    },
+    {
+      "exampleCsvRow": 20,
+      "originalCsvRow": 20
+    },
+    {
+      "exampleCsvRow": 21,
+      "originalCsvRow": 21
+    },
+    {
+      "exampleCsvRow": 22,
+      "originalCsvRow": 2172
+    },
+    {
+      "exampleCsvRow": 23,
+      "originalCsvRow": 2173
+    },
+    {
+      "exampleCsvRow": 24,
+      "originalCsvRow": 2174
+    },
+    {
+      "exampleCsvRow": 25,
+      "originalCsvRow": 2175
+    },
+    {
+      "exampleCsvRow": 26,
+      "originalCsvRow": 2176
+    },
+    {
+      "exampleCsvRow": 27,
+      "originalCsvRow": 2177
+    },
+    {
+      "exampleCsvRow": 28,
+      "originalCsvRow": 2178
+    },
+    {
+      "exampleCsvRow": 29,
+      "originalCsvRow": 2179
+    },
+    {
+      "exampleCsvRow": 30,
+      "originalCsvRow": 2180
+    },
+    {
+      "exampleCsvRow": 31,
+      "originalCsvRow": 2181
+    },
+    {
+      "exampleCsvRow": 32,
+      "originalCsvRow": 2182
+    },
+    {
+      "exampleCsvRow": 33,
+      "originalCsvRow": 2183
+    },
+    {
+      "exampleCsvRow": 34,
+      "originalCsvRow": 2184
+    },
+    {
+      "exampleCsvRow": 35,
+      "originalCsvRow": 2185
+    },
+    {
+      "exampleCsvRow": 36,
+      "originalCsvRow": 2186
+    },
+    {
+      "exampleCsvRow": 37,
+      "originalCsvRow": 2187
+    },
+    {
+      "exampleCsvRow": 38,
+      "originalCsvRow": 2188
+    },
+    {
+      "exampleCsvRow": 39,
+      "originalCsvRow": 2189
+    },
+    {
+      "exampleCsvRow": 40,
+      "originalCsvRow": 2190
+    },
+    {
+      "exampleCsvRow": 41,
+      "originalCsvRow": 2191
+    },
+    {
+      "exampleCsvRow": 42,
+      "originalCsvRow": 9529
+    },
+    {
+      "exampleCsvRow": 43,
+      "originalCsvRow": 9530
+    },
+    {
+      "exampleCsvRow": 44,
+      "originalCsvRow": 9531
+    },
+    {
+      "exampleCsvRow": 45,
+      "originalCsvRow": 9532
+    },
+    {
+      "exampleCsvRow": 46,
+      "originalCsvRow": 9533
+    },
+    {
+      "exampleCsvRow": 47,
+      "originalCsvRow": 9534
+    },
+    {
+      "exampleCsvRow": 48,
+      "originalCsvRow": 9535
+    },
+    {
+      "exampleCsvRow": 49,
+      "originalCsvRow": 9536
+    },
+    {
+      "exampleCsvRow": 50,
+      "originalCsvRow": 9537
+    },
+    {
+      "exampleCsvRow": 51,
+      "originalCsvRow": 9538
+    },
+    {
+      "exampleCsvRow": 52,
+      "originalCsvRow": 9539
+    },
+    {
+      "exampleCsvRow": 53,
+      "originalCsvRow": 9540
+    },
+    {
+      "exampleCsvRow": 54,
+      "originalCsvRow": 9541
+    },
+    {
+      "exampleCsvRow": 55,
+      "originalCsvRow": 9542
+    },
+    {
+      "exampleCsvRow": 56,
+      "originalCsvRow": 9543
+    },
+    {
+      "exampleCsvRow": 57,
+      "originalCsvRow": 9544
+    },
+    {
+      "exampleCsvRow": 58,
+      "originalCsvRow": 9545
+    },
+    {
+      "exampleCsvRow": 59,
+      "originalCsvRow": 9546
+    },
+    {
+      "exampleCsvRow": 60,
+      "originalCsvRow": 9547
+    },
+    {
+      "exampleCsvRow": 61,
+      "originalCsvRow": 16089
+    },
+    {
+      "exampleCsvRow": 62,
+      "originalCsvRow": 16090
+    },
+    {
+      "exampleCsvRow": 63,
+      "originalCsvRow": 16091
+    },
+    {
+      "exampleCsvRow": 64,
+      "originalCsvRow": 16092
+    },
+    {
+      "exampleCsvRow": 65,
+      "originalCsvRow": 16093
+    },
+    {
+      "exampleCsvRow": 66,
+      "originalCsvRow": 16094
+    },
+    {
+      "exampleCsvRow": 67,
+      "originalCsvRow": 16095
+    },
+    {
+      "exampleCsvRow": 68,
+      "originalCsvRow": 16096
+    },
+    {
+      "exampleCsvRow": 69,
+      "originalCsvRow": 16097
+    },
+    {
+      "exampleCsvRow": 70,
+      "originalCsvRow": 16098
+    },
+    {
+      "exampleCsvRow": 71,
+      "originalCsvRow": 16099
+    },
+    {
+      "exampleCsvRow": 72,
+      "originalCsvRow": 16100
+    },
+    {
+      "exampleCsvRow": 73,
+      "originalCsvRow": 16101
+    },
+    {
+      "exampleCsvRow": 74,
+      "originalCsvRow": 16102
+    },
+    {
+      "exampleCsvRow": 75,
+      "originalCsvRow": 16103
+    },
+    {
+      "exampleCsvRow": 76,
+      "originalCsvRow": 16104
+    },
+    {
+      "exampleCsvRow": 77,
+      "originalCsvRow": 16105
+    },
+    {
+      "exampleCsvRow": 78,
+      "originalCsvRow": 16106
+    },
+    {
+      "exampleCsvRow": 79,
+      "originalCsvRow": 16107
+    },
+    {
+      "exampleCsvRow": 80,
+      "originalCsvRow": 16108
+    },
+    {
+      "exampleCsvRow": 81,
+      "originalCsvRow": 24907
+    },
+    {
+      "exampleCsvRow": 82,
+      "originalCsvRow": 24908
+    },
+    {
+      "exampleCsvRow": 83,
+      "originalCsvRow": 24909
+    },
+    {
+      "exampleCsvRow": 84,
+      "originalCsvRow": 24910
+    },
+    {
+      "exampleCsvRow": 85,
+      "originalCsvRow": 24911
+    },
+    {
+      "exampleCsvRow": 86,
+      "originalCsvRow": 24912
+    },
+    {
+      "exampleCsvRow": 87,
+      "originalCsvRow": 24913
+    },
+    {
+      "exampleCsvRow": 88,
+      "originalCsvRow": 24914
+    },
+    {
+      "exampleCsvRow": 89,
+      "originalCsvRow": 24915
+    },
+    {
+      "exampleCsvRow": 90,
+      "originalCsvRow": 24916
+    },
+    {
+      "exampleCsvRow": 91,
+      "originalCsvRow": 24917
+    },
+    {
+      "exampleCsvRow": 92,
+      "originalCsvRow": 24918
+    },
+    {
+      "exampleCsvRow": 93,
+      "originalCsvRow": 24919
+    },
+    {
+      "exampleCsvRow": 94,
+      "originalCsvRow": 24920
+    },
+    {
+      "exampleCsvRow": 95,
+      "originalCsvRow": 24921
+    },
+    {
+      "exampleCsvRow": 96,
+      "originalCsvRow": 24922
+    },
+    {
+      "exampleCsvRow": 97,
+      "originalCsvRow": 24923
+    },
+    {
+      "exampleCsvRow": 98,
+      "originalCsvRow": 24924
+    },
+    {
+      "exampleCsvRow": 99,
+      "originalCsvRow": 24925
+    }
+  ]
+}
