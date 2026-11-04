@@ -2,6 +2,7 @@
   <configuration default="false" name="Executar horários" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="com.iscte.timetable.NSGAIIStudy" />
     <module name="Timetable-Optimization" />
+    <option name="PROGRAM_PARAMETERS" value="--validate-only --config=config/teste.json" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

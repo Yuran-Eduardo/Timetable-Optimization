@@ -12,16 +12,17 @@ import org.uma.jmetal.problem.integerproblem.impl.AbstractIntegerProblem;
 import org.uma.jmetal.solution.integersolution.IntegerSolution;
 
 /** Problem definition and evaluation, fulfilling the role of the supplied NMMin example.
- *  Cada aula é uma variável; o valor da variável é a sala escolhida (como pedido pelo professor).
- *  O dia e a hora de cada aula vêm do CSV e não são alterados. */
+ *  Cada aula é uma variável; o valor da variável é a sala escolhida.
+ *  O dia e a hora de cada aula vêm do CSV e não são alterados.
+ *  */
 public final class TimetableProblem extends AbstractIntegerProblem {
   public static final int OBJECTIVES = 2;
   public static final int GLOBAL_CONSTRAINTS = 1; // regra hard: choques de sala
   public static final int VARIABLES_PER_OCCURRENCE = 1; // só a sala
-  private final DataSet data;
-  private final StudyConfig config;
-  private final List<LessonDomain> domains;
-  private final double typeScale, seatScale;
+  private final DataSet data; //Todas as aulas e salas lidas do CSV
+  private final StudyConfig config; //Os parâmetros do ".json", como os pesos do objetivo 1
+  private final List<LessonDomain> domains; //Para cada aula, a lista das salas possíveis
+  private final double typeScale, seatScale; //
 
   /** Simple scenario constructor: N source occurrences, each with one room variable. */
   public TimetableProblem(int numberOfOccurrences, DataSet source, StudyConfig config, RoomPolicy policy) {
