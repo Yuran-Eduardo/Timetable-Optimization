@@ -1,38 +1,25 @@
 {
-  "versao": 1,
-  "cenario": "estrito-cadastro-original",
-  "data_decisao": "2026-11-01",
+  "versao": 2,
+  "cenario": "dados-tratados",
+  "data_decisao": "2026-11-03",
   "preservar_texto_original_pedido": true,
-  "origem_capacidade": "Capacidade Normal do cadastro original",
+  "origem_capacidade": "cap_normal de data/tratados/salas.csv (8 laboratorios corrigidos com a lotacao oficial)",
   "capacidade_suficiente_obrigatoria": true,
   "sala_original_restringe_dominio": false,
   "verificacao_disponibilidade_temporal": "posterior ao calculo dos dominios individuais",
-  "correspondencias_aprovadas": [
-    {
-      "id": "COMP-001",
-      "pedido": "Sala/anfiteatro aulas",
-      "estado": "aprovada_pelo_grupo",
-      "origem_decisao": "Instrucao expressa do grupo nesta conversa em 01/11/2026",
-      "operador": "OU",
-      "caracteristicas": ["Sala de Aulas normal", "Anfiteatro aulas"],
-      "exigir_tambem_capacidade_suficiente": true
-    }
-  ],
+  "correspondencias_aprovadas": [],
   "correspondencia_identica": {
     "estado": "aprovada_pelo_grupo_para_pedidos_inequivocos",
-    "criterio": "texto do pedido corresponde exatamente a uma coluna de caracteristica do cadastro",
+    "criterio": "codigo do pedido (caracteristica_pedida) corresponde exatamente a uma coluna de caracteristica de salas.csv",
     "operador": "caracteristica_obrigatoria",
     "nao_utilizar_numero_total_de_caracteristicas": true
   },
   "sem_sala_fisica": {
-    "pedido": "Não necessita de sala",
+    "pedido": "sem_sala",
     "recurso": null,
     "ocupa_horario_das_turmas": true
   },
-  "pedidos_pendentes": [
-    {"pedido": "Lab ISTA", "estado": "revisao_por_uc_turno", "ativar_candidatas": false},
-    {"pedido": "", "estado": "pedido_ausente", "inferir_sem_sala": false}
-  ],
+  "pedidos_pendentes": [],
   "pedido_nao_reconhecido": "reportar_pendente_sem_criar_equivalencia",
   "dominio_pendente": null,
   "dominio_comprovadamente_vazio": [],
@@ -44,3 +31,4 @@
   "cenarios_experimentais_ativos": [],
   "declaracao_avaliabilidade": "Todos os pedidos e restantes dados necessarios devem ter tratamento explicito antes de declarar avaliacao integral; avaliabilidade nao implica viabilidade"
 }
+

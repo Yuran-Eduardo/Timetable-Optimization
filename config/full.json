@@ -1,8 +1,8 @@
 {
-  "scenario": "dados-completos-26019-diagnostico",
+  "scenario": "dados-completos-26019-tratados",
   "synthetic": false,
-  "scheduleFile": "../data/originais/horario-com-salas.csv",
-  "roomsFile": "../data/originais/salas.csv",
+  "scheduleFile": "../data/tratados/horario_completo.csv",
+  "roomsFile": "../data/tratados/salas.csv",
   "policyFile": "compatibilidade-salas.json",
   "horizonStart": "2022-08-29",
   "horizonEnd": "2023-06-11",
@@ -36,16 +36,15 @@
     }
   },
   "profilesByClass": {},
-  "populationSize": 20,
-  "maxEvaluations": 100,
+  "populationSize": 100,
+  "maxEvaluations": 25000,
   "independentRuns": 2,
   "numberOfCores": 1,
   "problemSizes": [
     26019
   ],
   "softWeights": {
-    "preferred": 0.0,
-    "gaps": 1.0,
+    "type": 1.0,
     "seats": 1.0
   },
   "allowIncompleteData": true
