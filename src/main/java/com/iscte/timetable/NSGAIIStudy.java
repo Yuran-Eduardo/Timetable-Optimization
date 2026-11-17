@@ -65,7 +65,7 @@ public final class NSGAIIStudy {
     for (int size : config.problemSizes()) {
       // Explicit nested subsets in source CSV order, never fabricated or silently filtered.
       TimetableProblem problem = new TimetableProblem(size, data, config, policy);
-      problemList.add(new ExperimentProblem<IntegerSolution>(problem).setReferenceFront(problem.name() + ".csv"));
+      problemList.add(new ExperimentProblem<>(problem).setReferenceFront(problem.name() + ".csv"));
       System.out.printf("%s: %d aulas, %d variáveis, 2 objetivos, 1 constraint.%n",
               problem.name(), size, problem.numberOfVariables());
     }
