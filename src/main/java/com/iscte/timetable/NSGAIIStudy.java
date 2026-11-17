@@ -18,8 +18,6 @@ import org.uma.jmetal.lab.experiment.component.impl.GenerateReferenceParetoFront
 import org.uma.jmetal.lab.experiment.component.impl.GenerateWilcoxonTestTablesWithR;
 import org.uma.jmetal.lab.experiment.util.ExperimentAlgorithm;
 import org.uma.jmetal.lab.experiment.util.ExperimentProblem;
-import org.uma.jmetal.operator.crossover.impl.IntegerSBXCrossover;
-import org.uma.jmetal.operator.mutation.impl.IntegerPolynomialMutation;
 import org.uma.jmetal.qualityindicator.impl.Epsilon;
 import org.uma.jmetal.qualityindicator.impl.GenerationalDistance;
 import org.uma.jmetal.qualityindicator.impl.InvertedGenerationalDistance;
@@ -33,6 +31,8 @@ import pt.iscte.timetable.ResultExporter;
 import pt.iscte.timetable.RoomPolicy;
 import pt.iscte.timetable.StudyConfig;
 import pt.iscte.timetable.StudyInput;
+import pt.iscte.timetable.TimetableCrossover;
+import pt.iscte.timetable.TimetableMutation;
 import pt.iscte.timetable.TimetableProblem;
 
 /** The professor's native experimental pipeline, with integer timetable problems. */
@@ -114,7 +114,7 @@ public final class NSGAIIStudy {
     return experiment;
   }
 
-  /** Só a variante NSGAIIa (pedido do professor); operadores inteiros nativos do jMetal. */
+  /** Only the NSGAIIa variant (professor's request), with jMetal's integer operators plus a room repair. */
   public static List<ExperimentAlgorithm<IntegerSolution, List<IntegerSolution>>> configureAlgorithmList(
           List<ExperimentProblem<IntegerSolution>> problems, StudyConfig config) {
     List<ExperimentAlgorithm<IntegerSolution, List<IntegerSolution>>> algorithms = new ArrayList<>();
@@ -128,10 +128,13 @@ public final class NSGAIIStudy {
 
   private static void nsgaIIa(List<ExperimentAlgorithm<IntegerSolution, List<IntegerSolution>>> algorithms,
                               int run, ExperimentProblem<IntegerSolution> problem, StudyConfig config) {
-    Algorithm<List<IntegerSolution>> algorithm = new NSGAIIBuilder<>(problem.getProblem(),
-            new IntegerSBXCrossover(1.0, 5), new IntegerPolynomialMutation(
-            1.0 / problem.getProblem().numberOfVariables(), 10.0), config.populationSize())
-            // Regra hard como restrição: entre dois horários, o que tem menos choques de sala ganha sempre.
+    TimetableProblem timetable = (TimetableProblem) problem.getProblem();
+    // Same operators and parameters as before (IntegerSBX 1.0/5, polynomial mutation 1/n and 10),
+    // but each child is repaired so it has no room clashes.
+    Algorithm<List<IntegerSolution>> algorithm = new NSGAIIBuilder<>(timetable,
+            new TimetableCrossover(1.0, 5, timetable), new TimetableMutation(
+            1.0 / timetable.numberOfVariables(), 10.0, timetable), config.populationSize())
+            // Hard rule as a constraint: between two timetables, the one with fewer room clashes always wins.
             .setDominanceComparator(new DominanceWithConstraintsComparator<>())
             .setMaxEvaluations(config.maxEvaluations()).build();
     algorithms.add(new ExperimentAlgorithm<>(algorithm, "NSGAIIa", problem, run));

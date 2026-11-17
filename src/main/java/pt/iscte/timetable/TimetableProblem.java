@@ -10,19 +10,23 @@ import java.util.Set;
 import java.time.LocalDate;
 import org.uma.jmetal.problem.integerproblem.impl.AbstractIntegerProblem;
 import org.uma.jmetal.solution.integersolution.IntegerSolution;
+import org.uma.jmetal.util.pseudorandom.JMetalRandom;
 
 /** Problem definition and evaluation, fulfilling the role of the supplied NMMin example.
- *  Cada aula é uma variável; o valor da variável é a sala escolhida.
- *  O dia e a hora de cada aula vêm do CSV e não são alterados.
- *  */
+ *  Each lesson is one variable; its value is the chosen room (index in the lesson's list of possible rooms).
+ *  The day and time of each lesson come from the CSV and are never changed. */
 public final class TimetableProblem extends AbstractIntegerProblem {
   public static final int OBJECTIVES = 2;
-  public static final int GLOBAL_CONSTRAINTS = 1; // regra hard: choques de sala
-  public static final int VARIABLES_PER_OCCURRENCE = 1; // só a sala
+  public static final int GLOBAL_CONSTRAINTS = 1; // hard rule: no room clashes
+  public static final int VARIABLES_PER_OCCURRENCE = 1; // only the room
   private final DataSet data; //Todas as aulas e salas lidas do CSV
-  private final StudyConfig config; //Os parâmetros do ".json", como os pesos do objetivo 1
-  private final List<LessonDomain> domains; //Para cada aula, a lista das salas possíveis
-  private final double typeScale, seatScale; //
+  private final StudyConfig config; // //Os parâmetros do ".json", como os pesos do objetivo 1
+  private final List<LessonDomain> domains; ////Para cada aula, a lista das salas possíveis
+  private final double typeScale, seatScale;
+  /** Random attempts to find a free room before choosing one by hand (avoids endless loops). */
+  private static final int MAX_RANDOM_TRIES = 10;
+  /** Order used by repair(): lessons with fewer possible rooms (usually the biggest) go first. */
+  private final List<Integer> repairOrder;
 
   /** Simple scenario constructor: N source occurrences, each with one room variable. */
   public TimetableProblem(int numberOfOccurrences, DataSet source, StudyConfig config, RoomPolicy policy) {
@@ -51,12 +55,12 @@ public final class TimetableProblem extends AbstractIntegerProblem {
       LessonDomain domain = domains.get(i);
       if (!config.allowIncompleteData() && data.lessons().get(i).needsRoom() && domain.rooms().isEmpty())
         throw new IllegalArgumentException("Empty local domain: " + data.lessons().get(i).id());
-      // Variável i = índice da sala na lista de salas possíveis da aula i (0 .. nº de salas possíveis - 1).
+      // Variable i = index of the room in lesson i's list of possible rooms (0 .. number of possible rooms - 1).
       lower.add(0);
       upper.add(Math.max(0, domain.rooms().size() - 1));
     }
-    variableBounds(lower, upper); // numberOfVariables() = nº de aulas
-    // Escalas fixas para pôr as duas parcelas do objetivo 1 entre 0 e 1.
+    variableBounds(lower, upper); // numberOfVariables() = number of lessons
+    // Fixed scales that put both parts of objective 1 between 0 and 1.
     long withRoom = 0;
     for (int i = 0; i < domains.size(); i++)
       if (data.lessons().get(i).needsRoom() && !domains.get(i).rooms().isEmpty()) withRoom++;
@@ -68,21 +72,69 @@ public final class TimetableProblem extends AbstractIntegerProblem {
               .mapToInt(r -> Math.max(0, r.capacity() - students)).max().orElse(0);
     }
     seatScale = Math.max(1.0, maximumExcess);
+    repairOrder = new ArrayList<>();
+    for (int i = 0; i < domains.size(); i++) repairOrder.add(i);
+    repairOrder.sort(Comparator.comparingInt(i -> domains.get(i).rooms().size()));
+  }
+
+  /** Professor's suggestion: jMetal calls createSolution() to build each new random timetable.
+   *  We keep jMetal's random rooms, then repair them so the new timetable starts without room clashes. */
+  @Override public IntegerSolution createSolution() {
+    IntegerSolution solution = super.createSolution(); // random room for every lesson (jMetal default)
+    repair(solution);
+    return solution;
+  }
+
+  /** Changes the room of every lesson that clashes with a lesson already placed in the same room
+   *  at the same time. Used by createSolution(), TimetableCrossover and TimetableMutation. */
+  public void repair(IntegerSolution solution) {
+    // Rooms already used: (room, day) -> lessons placed there so far.
+    Map<ResourceDay, List<Integer>> used = new HashMap<>();
+    for (int i : repairOrder) {
+      Lesson lesson = data.lessons().get(i);
+      List<Room> rooms = domains.get(i).rooms();
+      if (!lesson.needsRoom() || rooms.isEmpty() || lesson.originalDate() == null) continue;
+      int choice = solution.variables().get(i);
+      if (!isFree(rooms.get(choice), lesson, used)) {
+        choice = -1;
+        // 1) Try a few random rooms.
+        for (int t = 0; t < MAX_RANDOM_TRIES && choice < 0; t++) {
+          int r = JMetalRandom.getInstance().nextInt(0, rooms.size() - 1);
+          if (isFree(rooms.get(r), lesson, used)) choice = r;
+        }
+        // 2) Otherwise choose by hand: the first free room in the list (best type, then smallest).
+        for (int r = 0; r < rooms.size() && choice < 0; r++)
+          if (isFree(rooms.get(r), lesson, used)) choice = r;
+        // 3) No free room at all: keep the old one; the clash is counted in objective 0.
+        if (choice < 0) choice = solution.variables().get(i);
+        solution.variables().set(i, choice);
+      }
+      used.computeIfAbsent(new ResourceDay(rooms.get(choice).id(), lesson.originalDate()), k -> new ArrayList<>()).add(i);
+    }
+  }
+
+  /** True if no lesson already placed in this room, on the same day, overlaps this lesson's time. */
+  private boolean isFree(Room room, Lesson lesson, Map<ResourceDay, List<Integer>> used) {
+    for (int other : used.getOrDefault(new ResourceDay(room.id(), lesson.originalDate()), List.of())) {
+      Lesson o = data.lessons().get(other);
+      if (o.start() < lesson.end() && lesson.start() < o.end()) return false;
+    }
+    return true;
   }
   @Override public IntegerSolution evaluate(IntegerSolution solution) {
-    // Durante a pesquisa só se calcula o que depende das salas (mais rápido).
+    // During the search only what depends on the rooms is computed (faster).
     ScheduleMetrics metrics = roomMetrics(data.lessons(), decode(solution));
     double hardViolations = metrics.hardViolations();
     double softViolations = softPenalty(metrics);
     solution.objectives()[0] = hardViolations;
     solution.objectives()[1] = softViolations;
-    // Restrição do jMetal: 0 = cumprida; valor negativo = violada (quanto mais negativo, pior).
-    // Com o DominanceWithConstraintsComparator, o NSGA-II prefere sempre horários com menos choques.
+    // jMetal constraint: 0 = satisfied; negative = violated (more negative is worse).
+    // With DominanceWithConstraintsComparator, NSGA-II always prefers timetables with fewer clashes.
     solution.constraints()[0] = -hardViolations;
     return solution;
   }
 
-  /** Objetivo 1 (soft): aulas em sala de tipo diferente do pedido + lugares desperdiçados, ambos entre 0 e 1. */
+  /** Objective 1 (soft): lessons in a room of the wrong type + empty seats, both scaled between 0 and 1. */
   public double softPenalty(ScheduleMetrics metrics) {
     return config.softWeights().get("type") * metrics.typeMismatches() / typeScale
             + config.softWeights().get("seats") * metrics.excessSeats() / seatScale;
@@ -100,9 +152,9 @@ public final class TimetableProblem extends AbstractIntegerProblem {
       throw new IllegalArgumentException("Out-of-domain gene " + i);
     Lesson lesson = data.lessons().get(i);
     LessonDomain domain = domains.get(i);
-    // Aulas que não precisam de sala (sem_sala ou 0 inscritos) ficam sem sala.
+    // Lessons that do not need a room (sem_sala) get no room.
     Room room = !lesson.needsRoom() || domain.rooms().isEmpty() ? null : domain.rooms().get(value);
-    // Dia e hora originais do CSV; aulas sem data continuam sem data.
+    // Original day and time from the CSV; lessons without a date stay without a date.
     if (lesson.originalDate() == null) return new Assignment(i, null, -1, -1, room);
     return new Assignment(i, lesson.originalDate(), lesson.start(), lesson.end(), room);
   }
@@ -149,7 +201,7 @@ public final class TimetableProblem extends AbstractIntegerProblem {
             countTypeMismatches(lessons, assignments));
   }
 
-  /** Só as métricas que dependem da escolha de salas; as que dependem das horas ficam a 0 (são fixas). */
+  /** Only the metrics that depend on the rooms; time-dependent metrics stay at 0 (times are fixed). */
   public static ScheduleMetrics roomMetrics(List<Lesson> lessons, List<Assignment> assignments) {
     Map<ResourceDay, List<Assignment>> roomDays = new HashMap<>();
     for (Assignment a : assignments)
@@ -162,13 +214,13 @@ public final class TimetableProblem extends AbstractIntegerProblem {
             sumSeatDeficit(lessons, assignments), 0, unassigned, 0, 0, countTypeMismatches(lessons, assignments));
   }
 
-  /** Aulas colocadas numa sala que não tem a característica pedida (regra soft). */
+  /** Lessons placed in a room without the requested feature (soft rule). */
   private static long countTypeMismatches(List<Lesson> lessons, List<Assignment> schedule) {
     return schedule.stream().filter(a -> a.room() != null)
             .filter(a -> !a.room().features().contains(lessons.get(a.lessonIndex()).requestedFeature())).count();
   }
 
-  /** Índices das aulas que estão em choque de sala (mesma sala, mesmo dia, horas sobrepostas). */
+  /** Indexes of the lessons in a room clash (same room, same day, overlapping times). */
   public static Set<Integer> roomConflictLessons(List<Assignment> assignments) {
     Map<ResourceDay, List<Assignment>> roomDays = new HashMap<>();
     for (Assignment a : assignments)
