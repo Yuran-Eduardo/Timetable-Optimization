@@ -20,8 +20,8 @@ public final class TimetableProblem extends AbstractIntegerProblem {
   public static final int GLOBAL_CONSTRAINTS = 1; // hard rule: no room clashes
   public static final int VARIABLES_PER_OCCURRENCE = 1; // only the room
   private final DataSet data; //Todas as aulas e salas lidas do CSV
-  private final StudyConfig config; // //Os parâmetros do ".json", como os pesos do objetivo 1
-  private final List<LessonDomain> domains; ////Para cada aula, a lista das salas possíveis
+  private final StudyConfig config; //Os parâmetros do ".json", como os pesos do objetivo 1
+  private final List<LessonDomain> domains; //Para cada aula, a lista das salas possíveis
   private final double typeScale, seatScale;
   /** Random attempts to find a free room before choosing one by hand (avoids endless loops). */
   private static final int MAX_RANDOM_TRIES = 10;
@@ -77,17 +77,34 @@ public final class TimetableProblem extends AbstractIntegerProblem {
     repairOrder.sort(Comparator.comparingInt(i -> domains.get(i).rooms().size()));
   }
 
-  /** Professor's suggestion: jMetal calls createSolution() to build each new random timetable.
-   *  We keep jMetal's random rooms, then repair them so the new timetable starts without room clashes. */
+  /** Counts the timetables created by each run (each run uses its own thread). */
+  private final ThreadLocal<Integer> created = ThreadLocal.withInitial(() -> 0);
+
+  /** Professor's suggestion: jMetal calls createSolution() to build each new timetable of the initial population.
+   *  Phase B: the first timetable of each run is greedy (every lesson in the first free room of its list:
+   *  requested type first, then the smallest room). The others stay random. Then they are repaired. */
   @Override public IntegerSolution createSolution() {
     IntegerSolution solution = super.createSolution(); // random room for every lesson (jMetal default)
-    repair(solution);
+    int count = created.get();
+    created.set(count + 1);
+    if (count % config.populationSize() == 0) {
+      // Greedy timetable: start every lesson in position 0 of its list and fix clashes by hand (no random tries).
+      for (int i = 0; i < solution.variables().size(); i++) solution.variables().set(i, 0);
+      repair(solution, false);
+    } else {
+      repair(solution, true);
+    }
     return solution;
   }
 
   /** Changes the room of every lesson that clashes with a lesson already placed in the same room
    *  at the same time. Used by createSolution(), TimetableCrossover and TimetableMutation. */
   public void repair(IntegerSolution solution) {
+    repair(solution, true);
+  }
+
+  /** randomTries = false: skip the random attempts and take the first free room of the list (greedy). */
+  private void repair(IntegerSolution solution, boolean randomTries) {
     // Rooms already used: (room, day) -> lessons placed there so far.
     Map<ResourceDay, List<Integer>> used = new HashMap<>();
     for (int i : repairOrder) {
@@ -98,7 +115,7 @@ public final class TimetableProblem extends AbstractIntegerProblem {
       if (!isFree(rooms.get(choice), lesson, used)) {
         choice = -1;
         // 1) Try a few random rooms.
-        for (int t = 0; t < MAX_RANDOM_TRIES && choice < 0; t++) {
+        for (int t = 0; randomTries && t < MAX_RANDOM_TRIES && choice < 0; t++) {
           int r = JMetalRandom.getInstance().nextInt(0, rooms.size() - 1);
           if (isFree(rooms.get(r), lesson, used)) choice = r;
         }
