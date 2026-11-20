@@ -78,7 +78,7 @@ public final class ResultExporter {
     text.append("\nBloqueios de configuração/entrada: ").append(report.globalBlockers())
             .append("\n\nTurmas sem perfil: ").append(report.missingProfiles().size())
             .append("\n\nDomínios individuais não vazios não demonstram viabilidade conjunta.\n");
-    text.append("\nModelo vigente: 1 variável (sala) por aula; 2 objetivos e 1 restrição. Objetivo 0 e restrição: choques de sala + aulas sem sala. Objetivo 1: tipo de sala errado + lugares vazios.\n");
+    text.append("\nModelo vigente: 1 variável (sala) por aula; 4 objetivos e 1 restrição. Objetivo 0: choques de sala. Objetivo 1: aulas sem sala. Objetivo 2: tipo de sala errado. Objetivo 3: lugares vazios. Restrição: total das regras hard.\n");
     text.append("\nExecução diagnóstica de dados incompletos autorizada na configuração: ")
             .append(input.config().allowIncompleteData()).append(". Pode executar: ")
             .append(input.validation().runnable(input.config())).append(".\n")
@@ -119,7 +119,7 @@ public final class ResultExporter {
                   "class_conflicts_fixed", "sequence_violations_fixed", "hard_zero")) {
             for (int index = 0; index < variables.length; index++) {
               var solution = new org.uma.jmetal.solution.integersolution.impl.DefaultIntegerSolution(
-                      problem.variableBounds(), 2, 0);
+                      problem.variableBounds(), TimetableProblem.OBJECTIVES, 0);
               if (variables[index].length != problem.numberOfVariables()) throw new IOException("Wrong VAR dimensions");
               for (int gene = 0; gene < variables[index].length; gene++) {
                 double value = variables[index][gene];
@@ -129,8 +129,8 @@ public final class ResultExporter {
               var assignments = problem.decode(solution);
               validateLocal(problem, policy, assignments);
               var m = TimetableProblem.calculateMetrics(problem.data().lessons(), assignments, problem.config());
-              if (objectives[index].length != 2 || objectives[index][0] != m.hardViolations()
-                      || Math.abs(objectives[index][1] - problem.softPenalty(m)) > 1e-10)
+              // The objectives saved by jMetal (FUN) must match the values recomputed from the timetable (VAR).
+              if (!java.util.Arrays.equals(objectives[index], problem.objectiveValues(m)))
                 throw new IOException("Exported objectives differ from recomputed objectives");
               metrics.printRecord(index, m.hardViolations(), problem.softPenalty(m), m.roomConflictPairs(),
                       m.unassignedRooms(), m.typeMismatches(), m.excessSeats(),
@@ -175,9 +175,10 @@ public final class ResultExporter {
               + " (" + Math.round(100.0 * selectedMetrics.typeMismatches() / Math.max(1, withRoom)) + "%)");
       System.out.println("[SOFT] Lugares vazios (soma): " + selectedMetrics.excessSeats()
               + " | média por aula: " + Math.round((double) selectedMetrics.excessSeats() / Math.max(1, withRoom)));
-      System.out.println("[INFO] Choques de turma (fixos, dependem das horas): " + selectedMetrics.classConflictPairs());
-      System.out.println("[INFO] Blocos > 3h da mesma UC (fixos, dependem das horas): " + selectedMetrics.sequenceViolations());
-      System.out.println("Objetivo 0 = " + (long) bestHard + " | Objetivo 1 = " + bestSoft);
+      System.out.println("Objetivos: 0 = " + selectedMetrics.roomConflictPairs()
+              + " | 1 = " + selectedMetrics.unassignedRooms()
+              + " | 2 = " + selectedMetrics.typeMismatches()
+              + " | 3 = " + selectedMetrics.excessSeats());
     }
   }
 

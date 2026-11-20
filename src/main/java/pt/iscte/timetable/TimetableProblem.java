@@ -16,12 +16,13 @@ import org.uma.jmetal.util.pseudorandom.JMetalRandom;
  *  Each lesson is one variable; its value is the chosen room (index in the lesson's list of possible rooms).
  *  The day and time of each lesson come from the CSV and are never changed. */
 public final class TimetableProblem extends AbstractIntegerProblem {
-  public static final int OBJECTIVES = 2;
+  /** One objective per rule: 0 room clashes, 1 lessons without a room, 2 wrong room type, 3 empty seats. */
+  public static final int OBJECTIVES = 4;
   public static final int GLOBAL_CONSTRAINTS = 1; // hard rule: no room clashes
   public static final int VARIABLES_PER_OCCURRENCE = 1; // only the room
   private final DataSet data; //Todas as aulas e salas lidas do CSV
-  private final StudyConfig config; //Os parâmetros do ".json", como os pesos do objetivo 1
-  private final List<LessonDomain> domains; //Para cada aula, a lista das salas possíveis
+  private final StudyConfig config; //Os parâmetros do ".json", como os pesos do objetivo
+  private final List<LessonDomain> domains; ////Para cada aula, a lista das salas possíveis
   private final double typeScale, seatScale;
   /** Random attempts to find a free room before choosing one by hand (avoids endless loops). */
   private static final int MAX_RANDOM_TRIES = 10;
@@ -142,16 +143,25 @@ public final class TimetableProblem extends AbstractIntegerProblem {
     // During the search only what depends on the rooms is computed (faster).
     ScheduleMetrics metrics = roomMetrics(data.lessons(), decode(solution));
     double hardViolations = metrics.hardViolations();
-    double softViolations = softPenalty(metrics);
-    solution.objectives()[0] = hardViolations;
-    solution.objectives()[1] = softViolations;
+    double[] values = objectiveValues(metrics);
+    for (int k = 0; k < OBJECTIVES; k++) solution.objectives()[k] = values[k];
     // jMetal constraint: 0 = satisfied; negative = violated (more negative is worse).
     // With DominanceWithConstraintsComparator, NSGA-II always prefers timetables with fewer clashes.
     solution.constraints()[0] = -hardViolations;
     return solution;
   }
 
-  /** Objective 1 (soft): lessons in a room of the wrong type + empty seats, both scaled between 0 and 1. */
+  /** One value per rule, all to minimise. Hard rules: 0 and 1. Soft rules: 2 and 3. */
+  public double[] objectiveValues(ScheduleMetrics metrics) {
+    return new double[] {
+            metrics.roomConflictPairs(), // 0 (hard): pairs of lessons in the same room at the same time
+            metrics.unassignedRooms(),   // 1 (hard): lessons that need a room and have none
+            metrics.typeMismatches(),    // 2 (soft): lessons in a room of a different type than requested
+            metrics.excessSeats()        // 3 (soft): total empty seats
+    };
+  }
+
+  /** Single soft score (wrong type + empty seats, scaled 0..1), used only to pick and report the best timetable. */
   public double softPenalty(ScheduleMetrics metrics) {
     return config.softWeights().get("type") * metrics.typeMismatches() / typeScale
             + config.softWeights().get("seats") * metrics.excessSeats() / seatScale;

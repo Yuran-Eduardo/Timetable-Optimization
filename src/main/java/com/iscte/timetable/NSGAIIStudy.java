@@ -66,8 +66,8 @@ public final class NSGAIIStudy {
       // Explicit nested subsets in source CSV order, never fabricated or silently filtered.
       TimetableProblem problem = new TimetableProblem(size, data, config, policy);
       problemList.add(new ExperimentProblem<>(problem).setReferenceFront(problem.name() + ".csv"));
-      System.out.printf("%s: %d aulas, %d variáveis, 2 objetivos, 1 constraint.%n",
-              problem.name(), size, problem.numberOfVariables());
+      System.out.printf("%s: %d aulas, %d variáveis, %d objetivos, 1 constraint.%n",
+              problem.name(), size, problem.numberOfVariables(), problem.numberOfObjectives());
     }
     List<ExperimentAlgorithm<IntegerSolution, List<IntegerSolution>>> algorithmList =
             configureAlgorithmList(problemList, config);
@@ -100,7 +100,7 @@ public final class NSGAIIStudy {
     ResultExporter.exportNativeSchedules(output, experiment, policy);
     Files.writeString(output.resolve("LEIA-ME.md"),
             "# Estudo nativo jMetal\n\n"
-                    + "Modelo: só salas (dia e hora do CSV). Dois objetivos e uma restrição. FUN = [choques de sala + aulas sem sala, tipo errado + lugares vazios].\n\n"
+                    + "Modelo: só salas (dia e hora do CSV). Quatro objetivos e uma restrição. FUN = [choques de sala, aulas sem sala, tipo errado, lugares vazios].\n\n"
                     + "O CSV horario-exemplo.csv representa o menor objetivo 0, seguido do menor objetivo 1, "
                     + "entre as alternativas exportadas do maior problema. Pode conter violações; não é declarado ótimo. "
                     + "O modelo usa os recursos identificáveis nos dados: salas e turmas.\n\n"
