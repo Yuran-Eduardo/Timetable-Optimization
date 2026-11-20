@@ -2,7 +2,7 @@
 
 Projeto de Sara Mateus e Yuran Eduardo para a UC de Otimização e Decisão em Engenharia de Software (ISCTE, 2026/2027).
 
-Este branch (`two-objectives`) contém a versão do programa com **dois objetivos**, que corresponde às fases A, B e C descritas na secção 5.4 do relatório. A solução final, com **quatro objetivos** (um por regra), está no branch `four-objectives`.
+Este branch (`two-objectives`) contém a versão do programa com **dois objetivos**, que corresponde às fases A, B e C descritas na secção 5.4 do relatório. A solução final, com **quatro objetivos** (um por regra), está no `main`.
 
 O programa sugere uma sala para cada aula do horário do ISCTE de 2022/2023, mantendo o dia e a hora originais. Usa Java 21 e o algoritmo NSGA-II da biblioteca jMetal 7.9.
 
@@ -73,7 +73,7 @@ Estas duas pastas são criadas pelo programa e não fazem parte do repositório.
 | `data/tratados/` | Ficheiros corrigidos: `horario_completo.csv`, `horario_teste.csv`, `salas.csv` |
 | `EXECUTAR.cmd`, `Run-Study.ps1` | Lançadores para Windows |
 
-A documentação (diagramas e scripts SQL) e os resultados finais estão no branch `four-objectives`.
+A documentação (diagramas e scripts SQL) e os resultados finais estão no `main`.
 
 ## 7. Problemas frequentes
 
