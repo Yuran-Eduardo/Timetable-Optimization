@@ -175,8 +175,6 @@ public final class ResultExporter {
               + " (" + Math.round(100.0 * selectedMetrics.typeMismatches() / Math.max(1, withRoom)) + "%)");
       System.out.println("[SOFT] Lugares vazios (soma): " + selectedMetrics.excessSeats()
               + " | média por aula: " + Math.round((double) selectedMetrics.excessSeats() / Math.max(1, withRoom)));
-      System.out.println("[INFO] Choques de turma (fixos, dependem das horas): " + selectedMetrics.classConflictPairs());
-      System.out.println("[INFO] Blocos > 3h da mesma UC (fixos, dependem das horas): " + selectedMetrics.sequenceViolations());
       System.out.println("Objetivo 0 = " + (long) bestHard + " | Objetivo 1 = " + bestSoft);
     }
   }
