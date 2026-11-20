@@ -6,7 +6,12 @@ import java.util.Set;
 /** One source record remains one occurrence, regardless of the number of classes. */
 public record Lesson(String id, int sourceRow, String courses, String unit, String shift,
                      Set<String> groups, int students, LocalDate originalDate,
-                     int duration, String requestedFeature, String originalRoom) {
+                     int duration, int start, String requestedFeature, String originalRoom) {
   public Lesson { groups = Set.copyOf(groups); }
-  public boolean needsRoom() { return !requestedFeature.equals("Não necessita de sala"); }
+  // Nos dados tratados, "Não necessita de sala" passou a ser o código sem_sala.
+  public static final String NO_ROOM = "sem_sala";
+  // Regra do grupo: só as aulas sem_sala não recebem sala. Quem pede sala recebe sempre, mesmo com 0 inscritos.
+  public boolean needsRoom() { return !requestedFeature.equals(NO_ROOM); }
+  // Hora de fim, em minutos desde a meia-noite (o início vem do CSV e não é alterado pelo algoritmo).
+  public int end() { return start + duration; }
 }

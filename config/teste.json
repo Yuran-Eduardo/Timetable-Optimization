@@ -1,11 +1,11 @@
 {
-  "scenario": "estudo-real-MEA1-nativo",
+  "scenario": "semana-teste-2296-tratados",
   "synthetic": false,
-  "scheduleFile": "../data/exemplo-real/horario.csv",
-  "roomsFile": "../data/originais/salas.csv",
+  "scheduleFile": "../data/tratados/horario_teste.csv",
+  "roomsFile": "../data/tratados/salas.csv",
   "policyFile": "compatibilidade-salas.json",
-  "horizonStart": "2022-09-12",
-  "horizonEnd": "2022-12-04",
+  "horizonStart": "2022-10-10",
+  "horizonEnd": "2022-10-16",
   "openingMinute": 480,
   "closingMinute": 1380,
   "gridMinutes": 30,
@@ -18,9 +18,9 @@
     "SATURDAY"
   ],
   "closedDates": [],
-  "unavailableDatesReviewed": true,
-  "classIdentifiersReviewed": true,
-  "multipleProfilesMode": "SEPARATE_PERIODS",
+  "unavailableDatesReviewed": false,
+  "classIdentifiersReviewed": false,
+  "multipleProfilesMode": null,
   "profileDefinitions": {
     "Manhã": {
       "start": "08:00",
@@ -35,26 +35,17 @@
       "end": "22:30"
     }
   },
-  "profilesByClass": {
-    "MEA1": [
-      "Tarde"
-    ],
-    "MEPB1": [
-      "Tarde"
-    ]
-  },
+  "profilesByClass": {},
   "populationSize": 100,
-  "maxEvaluations": 25000,
-  "independentRuns": 3,
+  "maxEvaluations": 200000,
+  "independentRuns": 2,
   "numberOfCores": 1,
   "problemSizes": [
-    20,
-    50,
-    98
+    2296
   ],
   "softWeights": {
-    "preferred": 1.0,
-    "gaps": 1.0,
+    "type": 1.0,
     "seats": 1.0
-  }
+  },
+  "allowIncompleteData": true
 }
