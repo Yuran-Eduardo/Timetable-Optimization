@@ -3,10 +3,11 @@ package pt.iscte.timetable;
 import java.time.LocalDate;
 import java.util.Set;
 
-/** One source record remains one occurrence, regardless of the number of classes. */
+/** Representa uma aula numa data concreta, mesmo quando é partilhada por várias turmas. */
 public record Lesson(String id, int sourceRow, String courses, String unit, String shift,
                      Set<String> groups, int students, LocalDate originalDate,
                      int duration, int start, String requestedFeature, String originalRoom) {
+  /** Guarda as turmas da aula como um conjunto imutável. */
   public Lesson { groups = Set.copyOf(groups); }
   // Nos dados tratados, "Não necessita de sala" passou a ser o código sem_sala.
   public static final String NO_ROOM = "sem_sala";

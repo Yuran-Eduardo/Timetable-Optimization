@@ -10,7 +10,7 @@ O programa sugere uma sala para cada aula do horário do ISCTE de 2022/2023, man
 - 9 lugares vazios por aula, em média;
 - cerca de 3 minutos de execução.
 
-O relatório final explica o percurso e as decisões.
+O relatório final explica o percurso e as decisões. A [documentação técnica](docs/Guia-tecnico.md) descreve as classes, os objetivos, a correção de choques, a seleção do CSV e as limitações da versão atual.
 
 ## 1. Requisitos
 
@@ -38,7 +38,7 @@ A pasta de trabalho (working directory) deve ser a raiz do projeto. Em Windows t
 
 No início da execução deve aparecer:
 ```
-Timetable-26019: 26019 aulas, 26019 variáveis, 4 objetivos, 1 constraint.
+Timetable-26019: 26019 aulas, 26019 variáveis, 4 objetivos, 1 restrição.
 ```
 No fim aparece o resumo do melhor horário (`RESUMO DO MELHOR HORÁRIO`), com as violações de cada regra.
 
@@ -47,7 +47,7 @@ No fim aparece o resumo do melhor horário (`RESUMO DO MELHOR HORÁRIO`), com as
 - **`Resultados-Horarios-CSV/Horario-<data>.csv`:** o horário final, para abrir no Excel (Dados → De Texto/CSV, UTF-8, separador `;`). Cada linha é uma aula, com a sala atribuída e as colunas `Estado`, `Tipo_sala_certo`, `Lugares_vazios` e `Choque_sala`, que mostram as violações dessa aula.
 - **`Resultados/reais/<cenário>/<data>/`:** os detalhes técnicos do jMetal (FUN, VAR, indicadores e métricas de todos os horários alternativos).
 
-Estas duas pastas são criadas pelo programa e não fazem parte do repositório.
+Os novos resultados são guardados localmente e ignorados pelo Git. A pasta `Resultados-Horarios-CSV` ainda contém uma referência histórica V1 versionada, do modelo anterior; não deve ser confundida com o resultado da versão atual.
 
 ## 5. Como funciona
 
@@ -59,7 +59,7 @@ Estas duas pastas são criadas pelo programa e não fazem parte do repositório.
     - 3: lugares vazios (soft).
 - **Restrição:** a soma das regras hard. Um horário com violações hard perde sempre para um horário sem violações.
 - **Horário inicial guloso:** o primeiro horário de cada execução coloca cada aula na primeira sala livre da sua lista.
-- **Correção de choques (repair):** cada horário novo (população inicial, cruzamento e mutação) é corrigido para não ter duas aulas na mesma sala à mesma hora.
+- **Correção de choques (repair):** cada horário novo (população inicial, cruzamento e mutação) passa por uma tentativa de correção. Se nenhuma candidata estiver livre, o choque permanece e é contabilizado; não há garantia geral de viabilidade.
 - **Parâmetros (`config/full.json`):** população 100, 5 000 avaliações, 2 execuções em 2 núcleos. Os pesos `softWeights` servem para escolher qual dos horários alternativos é exportado.
 
 ## 6. Organização do repositório
@@ -74,7 +74,8 @@ Estas duas pastas são criadas pelo programa e não fazem parte do repositório.
 | `data/originais/` | Ficheiros recebidos, sem alterações |
 | `data/tratados/` | Ficheiros corrigidos: `horario_completo.csv`, `horario_teste.csv`, `salas.csv` |
 | `docs/` | Diagrama entidade-relação, diagrama de classes, fluxo de execução e scripts SQL da base de dados |
-| `resultados/` | Horário final obtido e Excel com a evolução da solução |
+| `Resultados-Horarios-CSV/` | Horários publicados e metadados; a referência V1 é histórica |
+| `docs/Guia-tecnico.md` | Descrição técnica da implementação atual e limitações |
 | `EXECUTAR.cmd`, `Run-Study.ps1` | Lançadores para Windows |
 
 ## 7. Problemas frequentes

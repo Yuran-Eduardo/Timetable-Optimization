@@ -20,7 +20,7 @@
         <dependency><groupId>org.uma.jmetal</groupId><artifactId>jmetal-lab</artifactId><version>${jmetal.version}</version></dependency>
         <dependency><groupId>org.uma.jmetal</groupId><artifactId>jmetal-problem</artifactId><version>${jmetal.version}</version></dependency>
         <dependency><groupId>org.apache.commons</groupId><artifactId>commons-csv</artifactId><version>1.12.0</version></dependency>
-        <!-- jMetal's older transitive commons-io must not override the CSV parser's API. -->
+        <!-- Mantém uma versão de commons-io compatível com o leitor de CSV. -->
         <dependency><groupId>commons-io</groupId><artifactId>commons-io</artifactId><version>2.17.0</version></dependency>
         <dependency><groupId>commons-codec</groupId><artifactId>commons-codec</artifactId><version>1.17.1</version></dependency>
         <dependency><groupId>com.fasterxml.jackson.core</groupId><artifactId>jackson-databind</artifactId><version>2.17.2</version></dependency>
@@ -28,6 +28,8 @@
         <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>5.11.4</version><scope>test</scope></dependency>
     </dependencies>
     <build><plugins>
+        <!-- Fixa a cópia de recursos para usar a mesma versão em diferentes instalações do Maven. -->
+        <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-resources-plugin</artifactId><version>3.3.1</version></plugin>
         <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.13.0</version></plugin>
         <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.2</version></plugin>
         <plugin><groupId>org.codehaus.mojo</groupId><artifactId>exec-maven-plugin</artifactId><version>3.5.0</version>

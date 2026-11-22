@@ -1,3 +1,4 @@
+# Localiza o Maven e executa o estudo ou os testes a partir da raiz do projeto.
 param(
     [switch]$Demo,
     [switch]$RealExample,

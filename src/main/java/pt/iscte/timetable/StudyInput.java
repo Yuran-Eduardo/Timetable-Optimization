@@ -6,13 +6,14 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-/** Reads experiment inputs and diagnoses them; contains no algorithm configuration. */
+/** Reúne a configuração, os dados, a política e o diagnóstico de uma execução. */
 public record StudyInput(StudyConfig config, DataSet data, RoomPolicy policy,
     Preflight.Result validation, Path output, Path configFile, Path policyFile,
     boolean validationOnly) {
 
+  /** Lê os ficheiros de entrada e reúne os dados necessários à execução. */
   public static StudyInput load(String[] args) throws IOException {
-    // Argument files avoid Windows cmd.exe ambiguity for paths with spaces/apostrophes.
+    // O ficheiro de argumentos evita ambiguidades em caminhos Windows com espaços ou apóstrofos.
     if (args.length == 1 && args[0].startsWith("--arguments-file="))
       args = JsonFiles.MAPPER.readValue(Path.of(args[0].substring(17)).toFile(), String[].class);
     boolean demo = false, realExample = false, validationOnly = false;
@@ -45,6 +46,7 @@ public record StudyInput(StudyConfig config, DataSet data, RoomPolicy policy,
         configuration, policyFile, validationOnly);
   }
 
+  /** Localiza a raiz do projeto a partir do diretório de trabalho. */
   public static Path locateProject() {
     for (Path root = Path.of("").toAbsolutePath(); root != null; root = root.getParent()) {
       if (Files.isRegularFile(root.resolve("config/real.json"))) return root;
