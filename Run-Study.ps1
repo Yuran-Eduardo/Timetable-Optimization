@@ -1,4 +1,4 @@
-# Localiza o Maven e executa o estudo ou os testes a partir da raiz do projeto.
+﻿# Localiza o Maven e executa o estudo ou os testes a partir da raiz do projeto.
 param(
     [switch]$Demo,
     [switch]$RealExample,
@@ -15,12 +15,17 @@ if (-not $mavenExecutable) {
     $jetbrainsDirectory = Join-Path $env:ProgramFiles 'JetBrains'
     if (Test-Path -LiteralPath $jetbrainsDirectory) {
         foreach ($installation in (Get-ChildItem -LiteralPath $jetbrainsDirectory -Directory | Sort-Object Name -Descending)) {
-            $candidate = Join-Path $installation.FullName 'plugins\maven\lib\maven3\bin\mvn.cmd'
-            if (Test-Path -LiteralPath $candidate) { $mavenExecutable = $candidate; break }
+            # O nome da pasta do plugin varia entre versões do IntelliJ.
+            foreach ($relativeMavenPath in @('plugins\maven-plugin\lib\maven3\bin\mvn.cmd', 'plugins\maven\lib\maven3\bin\mvn.cmd')) {
+                $candidate = Join-Path $installation.FullName $relativeMavenPath
+                if (Test-Path -LiteralPath $candidate) { $mavenExecutable = $candidate; break }
+            }
+            if ($mavenExecutable) { break }
         }
     }
 }
 if (-not $mavenExecutable) { throw 'Maven não encontrado. Usa o Maven do IntelliJ ou instala Maven no PATH.' }
+Write-Host "Maven: $mavenExecutable"
 $mavenArguments = @('-Dmaven.repo.local=./.m2-cache', '-U')
 $argumentFile = $null
 if ($Test) {
