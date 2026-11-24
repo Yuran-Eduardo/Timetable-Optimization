@@ -22,7 +22,7 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 
-/** Reads the complete UTF-8 reference. Every source lesson gets an ID, including invalid rows. */
+/** Lê os CSV em UTF-8, preservando as ocorrências e registando erros de entrada. */
 public final class CsvDataLoader {
   // Nomes das colunas dos ficheiros tratados (data/tratados). Se os cabeçalhos mudarem, basta mudar aqui.
   // salas.csv: as 5 primeiras colunas identificam a sala; as restantes são características (X = tem).
@@ -31,7 +31,9 @@ public final class CsvDataLoader {
   private static final String LESSON_ID = "id", COURSE = "curso", UNIT = "uc", SHIFT = "turno", CLASSES = "turma",
           STUDENTS = "inscritos", START = "inicio", END = "fim", DATE = "data",
           REQUESTED_FEATURE = "caracteristica_pedida", ORIGINAL_ROOM = "sala";
+  /** Impede a criação de instâncias desta classe utilitária. */
   private CsvDataLoader() {}
+  /** Lê os ficheiros de entrada e reúne os dados necessários à execução. */
   public static DataSet load(Path schedule, Path catalog) throws IOException {
     List<String> errors = new ArrayList<>();
     List<Room> rooms = new ArrayList<>();
@@ -85,10 +87,12 @@ public final class CsvDataLoader {
     return new DataSet(lessons, rooms, columns, errors,
             Map.of(schedule.toString(), sha256(schedule), catalog.toString(), sha256(catalog)));
   }
+  /** Calcula o resumo SHA-256 de um ficheiro para rastrear a origem dos dados. */
   public static String sha256(Path path) throws IOException {
     try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(path))); }
     catch (java.security.NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
   }
+  /** Lê um inteiro não negativo e regista um erro se o valor for inválido. */
   private static int number(String raw, String where, List<String> errors) {
     try {
       int n = Integer.parseInt(raw.trim());
@@ -96,12 +100,13 @@ public final class CsvDataLoader {
       return n;
     } catch (NumberFormatException e) { errors.add(where + ": invalid/missing nonnegative number " + raw); return -1; }
   }
+  /** Abre um CSV com separador ponto e vírgula, aceitando BOM e a linha sep=;. */
   private static CSVParser parser(Path path) throws IOException {
     BufferedReader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
     reader.mark(65536);
     String first = reader.readLine();
     if (first != null && first.startsWith("\uFEFF")) first = first.substring(1);
-    if (first != null && first.equals("sep=;")) { /* Excel separator line is not a header. */ }
+    if (first != null && first.equals("sep=;")) { /* A linha sep=; do Excel não é um cabeçalho. */ }
     else {
       reader.reset(); reader.mark(1);
       if (reader.read() != '\uFEFF') reader.reset();

@@ -10,17 +10,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Unknown compatibility and proven empty domains are distinct diagnostic states. */
+/** Valida os dados e constrói as listas de salas candidatas antes da otimização. */
 public final class Preflight {
+  /** Guarda bloqueios, avisos e candidatas de uma ocorrência. */
   public record Row(String id, int sourceRow, String request, String roomStatus,
                     int featureCandidates, int capacityCandidates, Integer maximumCapacity,
                     List<String> blockers, List<String> warnings) {}
+  /** Resume a cobertura e os bloqueios sem provar viabilidade conjunta. */
   public record Report(String scenario, boolean synthetic, int lessons, int catalogRooms,
                        boolean fullyEvaluable, boolean jointlyFeasibleProven,
                        Map<String, Long> roomCoverage, List<String> globalBlockers,
                        Set<String> missingProfiles, List<Row> occurrences,
                        Map<String, String> sourceHashes) {}
+  /** Associa o diagnóstico aos domínios de salas do problema. */
   public record Result(Report report, List<LessonDomain> domains) {
+    /** Decide se o diagnóstico permite executar sob a política configurada. */
     public boolean runnable(StudyConfig config) {
       if (report.fullyEvaluable()) return true;
       if (!config.allowIncompleteData()) return false;
@@ -32,13 +36,16 @@ public final class Preflight {
               // As preferências de horário (perfis por turma) já não são usadas: não bloqueiam a execução.
               && report.occurrences().stream().flatMap(row -> row.blockers().stream()).allMatch(permittedRows::contains);
     }
+    /** Interrompe a execução quando os bloqueios não são permitidos pela configuração. */
     public void requireRunnable(StudyConfig config) {
       if (!runnable(config)) throw new IllegalStateException("Input cannot run under the configured policy; read validation.json");
     }
+    /** Exige um diagnóstico sem bloqueios antes de continuar. */
     public void requireReady() {
       if (!report.fullyEvaluable()) throw new IllegalStateException("Input is not fully evaluable; read validation.json");
     }
   }
+  /** Impede a criação de instâncias desta classe utilitária. */
   private Preflight() {}
 
   /** Características que identificam uma sala de aula. Espaços sem nenhuma delas (átrios, balneários,
@@ -48,9 +55,11 @@ public final class Preflight {
           "arq_1", "arq_2", "arq_3", "arq_4", "arq_5", "arq_6", "arq_9",
           "lab_arq_computadores_1", "lab_arq_computadores_2", "lab_bases_engenharia", "lab_electronica",
           "lab_informatica", "lab_jornalismo", "lab_redes_1", "lab_redes_2", "lab_telecomunicacoes");
+  /** Verifica se a sala tem pelo menos uma característica de espaço letivo. */
   public static boolean isClassroom(Room room) {
     return room.features().stream().anyMatch(CLASSROOM_FEATURES::contains);
   }
+  /** Valida o cenário e ordena as salas candidatas por tipo pedido e capacidade. */
   public static Result inspect(DataSet data, RoomPolicy policy, StudyConfig config) {
     config.validate();
     List<String> global = new ArrayList<>(data.inputErrors());

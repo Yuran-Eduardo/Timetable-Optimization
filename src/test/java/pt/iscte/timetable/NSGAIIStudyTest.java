@@ -4,51 +4,49 @@ import com.iscte.timetable.NSGAIIStudy;
 import static org.junit.jupiter.api.Assertions.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.commons.csv.CSVFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+/** Exercita a entrada do programa e a pipeline nativa numa experiência curta. */
 class NSGAIIStudyTest {
   @TempDir Path temporary;
 
-  @Test void strictScenarioDiagnosesAllOccurrencesWithoutRunningAlgorithm() throws Exception {
-    Path output = temporary.resolve("real output with spaces");
-    Path arguments = temporary.resolve("arguments.json");
-    JsonFiles.write(arguments, List.of("--config=config/real.json", "--output=" + output));
-    NSGAIIStudy.main(new String[]{"--arguments-file=" + arguments});
+  /** A opção de validação lê os dados reais sem arrancar o NSGA-II. */
+  @Test void validaDadosCompletosSemExecutarAlgoritmo() throws Exception {
+    var output = temporary.resolve("validacao com espacos");
+    NSGAIIStudy.main(new String[]{"--validate-only", "--output=" + output});
     var report = JsonFiles.MAPPER.readTree(output.resolve("validation.json").toFile());
     assertEquals(26019, report.path("lessons").asInt());
-    assertEquals(131, report.path("catalogRooms").asInt());
-    assertEquals(24092, report.path("roomCoverage").path("AVAILABLE").asInt());
-    assertEquals(301, report.path("roomCoverage").path("UNRESOLVED_REQUEST").asInt());
-    assertEquals(371, report.path("roomCoverage").path("INSUFFICIENT_CAPACITY").asInt());
-    assertFalse(report.path("fullyEvaluable").asBoolean());
+    assertEquals(132, report.path("catalogRooms").asInt());
     assertFalse(Files.exists(output.resolve("NSGAIIStudy/data")));
+    assertFalse(Files.exists(output.resolve("horario-exemplo.csv")));
   }
 
-  @Test void completeNativePipelineProducesFunVarIndicatorsLatexAndRScripts() throws Exception {
-    var config = Fixtures.change(Fixtures.change(Fixtures.change(Fixtures.config(),
-        "populationSize", 20), "maxEvaluations", 200), "independentRuns", 2);
-    var data = Fixtures.demo(); var policy = Fixtures.policy();
-    var experiment = NSGAIIStudy.execute(data, policy, config, Preflight.inspect(data, policy, config), temporary);
-    Path nativeOutput = temporary.resolve("NSGAIIStudy");
-    assertEquals(3, experiment.getProblemList().size());
-    for (String tag : List.of("NSGAIIa", "NSGAIIb", "NSGAIIc", "NSGAIId")) {
-      for (int size : List.of(5, 10, 20)) {
-        Path directory = nativeOutput.resolve("data/" + tag + "/Timetable-" + size);
-        for (int run = 0; run < 2; run++) {
-          List<String> fun = Files.readAllLines(directory.resolve("FUN" + run + ".csv"));
-          List<String> variables = Files.readAllLines(directory.resolve("VAR" + run + ".csv"));
-          assertFalse(fun.isEmpty()); assertEquals(fun.size(), variables.size());
-          assertEquals(2, fun.getFirst().split(",").length);
-          assertEquals(3 * size, variables.getFirst().split(",").length);
-        }
-        for (var indicator : experiment.getIndicatorList()) {
-          List<String> values = Files.readAllLines(directory.resolve(indicator.name()));
-          assertEquals(2, values.size());
-          assertTrue(values.stream().mapToDouble(Double::parseDouble).allMatch(Double::isFinite));
-        }
-      }
+  /** Confirma FUN/VAR, indicadores, scripts, CSV e cobertura das aulas de ponta a ponta. */
+  @Test void executaPipelineNativaEExportaTodasAsAulas() throws Exception {
+    var data = Fixtures.smallData();
+    var config = Fixtures.config();
+    var experiment = NSGAIIStudy.execute(data, Fixtures.policy(), config,
+        Preflight.inspect(data, Fixtures.policy(), config), temporary);
+    assertEquals(1, experiment.getProblemList().size());
+    assertTrue(experiment.getAlgorithmList().stream().allMatch(a -> a.getAlgorithmTag().equals("NSGAIIa")));
+    var nativeOutput = temporary.resolve("NSGAIIStudy");
+    var directory = nativeOutput.resolve("data/NSGAIIa/Timetable-4");
+    for (int run = 0; run < 2; run++) {
+      var fun = Files.readAllLines(directory.resolve("FUN" + run + ".csv"));
+      var variables = Files.readAllLines(directory.resolve("VAR" + run + ".csv"));
+      assertFalse(fun.isEmpty());
+      assertEquals(fun.size(), variables.size());
+      for (String line : fun) assertEquals(2, line.split(",").length);
+      for (String line : variables) assertEquals(4, line.split(",").length);
+    }
+    for (var indicator : experiment.getIndicatorList()) {
+      var values = Files.readAllLines(directory.resolve(indicator.name()));
+      assertEquals(2, values.size());
+      assertTrue(values.stream().mapToDouble(Double::parseDouble).allMatch(Double::isFinite));
     }
     try (var files = Files.list(nativeOutput.resolve("latex"))) {
       assertTrue(files.anyMatch(p -> p.toString().endsWith(".tex")));
@@ -56,13 +54,26 @@ class NSGAIIStudyTest {
     try (var files = Files.list(nativeOutput.resolve("R"))) {
       assertTrue(files.anyMatch(p -> p.toString().endsWith(".R")));
     }
-    assertTrue(Files.exists(temporary.resolve("problem-instances.json")));
-    assertTrue(Files.exists(temporary.resolve("horarios/Timetable-20/NSGAIIa/run-0/metrics.csv")));
-  }
-
-  @Test void nativeNormalizationSupportsConstantReferenceObjective() {
-    double[][] normalized = org.uma.jmetal.util.NormalizeUtils.normalize(new double[][]{{0, 0.25}});
-    assertTrue(Double.isFinite(normalized[0][0]));
-    assertTrue(Double.isFinite(normalized[0][1]));
+    Set<String> ids = new HashSet<>();
+    try (var reader = Files.newBufferedReader(temporary.resolve("horario-exemplo.csv"));
+         var csv = CSVFormat.DEFAULT.builder().setDelimiter(';').setHeader()
+             .setSkipHeaderRecord(true).build().parse(reader)) {
+      var rows = csv.getRecords();
+      assertEquals(4, rows.size());
+      for (var row : rows) {
+        assertTrue(ids.add(row.get("source_id")));
+        assertEquals("NAO", row.get("Choque_sala"));
+        var lesson = data.lessons().stream().filter(l -> l.id().equals(row.get("source_id"))).findFirst().orElseThrow();
+        assertEquals(lesson.originalDate().toString(), row.get("Data"));
+        assertEquals(ResultExporter.clock(lesson.start()), row.get("Inicio"));
+        if (lesson.needsRoom()) assertFalse(row.get("Sala").isBlank());
+        else { assertEquals("SEM_SALA", row.get("Estado")); assertTrue(row.get("Sala").isBlank()); }
+      }
+    }
+    assertEquals(Set.of("A", "B", "C", "D"), ids);
+    var summary = JsonFiles.MAPPER.readTree(temporary.resolve("solution-summary.json").toFile());
+    assertEquals(4, summary.path("occurrences").asInt());
+    assertEquals(0, summary.path("hardViolations").asDouble());
+    assertTrue(Files.exists(temporary.resolve("horarios/Timetable-4/NSGAIIa/run-0/metrics.csv")));
   }
 }

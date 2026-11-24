@@ -1,3 +1,4 @@
+# Executa com R os scripts estatísticos gerados pelo estudo nativo do jMetal.
 param([Parameter(Mandatory=$true)][string]$Output)
 $ErrorActionPreference = 'Stop'
 $rCommand = Get-Command Rscript.exe -ErrorAction SilentlyContinue

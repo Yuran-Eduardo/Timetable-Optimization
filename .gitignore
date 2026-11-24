@@ -2,14 +2,12 @@ target/
 outputs/
 arquivo/
 .m2-cache/
-# Local experimental outputs; the version 1 reference is deliberately committed.
+# Resultados locais gerados pelas execuções.
 /Resultados/
 /HORARIO*.csv
 /RESULTADOS.txt
 /Resultados-Horarios-CSV/*
 !/Resultados-Horarios-CSV/README.md
-!/Resultados-Horarios-CSV/Horario-Referencia-V1.csv
-!/Resultados-Horarios-CSV/Horario-Referencia-V1.json
 # IDE state and temporary authoring/rendering files.
 /.idea/
 /tmp/

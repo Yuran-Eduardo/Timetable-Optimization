@@ -10,16 +10,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Only approved mappings participate. Historical assignments cannot add compatibility. */
+/** Carrega as correspondências de características declaradas na política; não as deduz do histórico durante a execução. */
 public final class RoomPolicy {
   private final Map<String, Set<String>> approvedAlternatives;
   private final Set<String> pending;
 
+  /** Copia as correspondências aprovadas e os pedidos pendentes. */
   public RoomPolicy(Map<String, Set<String>> approvedAlternatives, Set<String> pending) {
     this.approvedAlternatives = new HashMap<>();
     approvedAlternatives.forEach((key, value) -> this.approvedAlternatives.put(key, Set.copyOf(value)));
     this.pending = Set.copyOf(pending);
   }
+  /** Lê e valida a política de correspondências declarada no JSON. */
   public static RoomPolicy read(Path path) throws IOException {
     JsonNode root = JsonFiles.MAPPER.readTree(path.toFile());
     if (!root.path("capacidade_suficiente_obrigatoria").asBoolean()
@@ -42,14 +44,17 @@ public final class RoomPolicy {
     root.path("pedidos_pendentes").forEach(n -> pending.add(n.path("pedido").asText()));
     return new RoomPolicy(aliases, pending);
   }
+  /** Indica se o pedido tem uma correspondência conhecida ou uma coluna no cadastro. */
   public boolean resolved(String request, Set<String> columns) {
     return approvedAlternatives.containsKey(request) || !pending.contains(request) && columns.contains(request);
   }
+  /** Verifica a correspondência declarada entre o pedido e as características da sala. */
   public boolean compatible(String request, Room room) {
     var alternatives = approvedAlternatives.get(request);
     return alternatives == null ? !pending.contains(request) && room.features().contains(request)
         : alternatives.stream().anyMatch(room.features()::contains);
   }
+  /** Filtra as salas que correspondem à característica pedida. */
   public List<Room> byFeature(String request, List<Room> rooms) {
     return rooms.stream().filter(room -> compatible(request, room)).toList();
   }

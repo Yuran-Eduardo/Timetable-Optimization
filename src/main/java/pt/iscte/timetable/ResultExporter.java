@@ -15,10 +15,12 @@ import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.uma.jmetal.solution.integersolution.IntegerSolution;
 
+/** Valida e exporta os horários obtidos pelo jMetal e os respetivos metadados. */
 public final class ResultExporter {
+  /** Impede a criação de instâncias desta classe utilitária. */
   private ResultExporter() {}
 
-  /** Store an immutable CSV per completed study; previous runs are never replaced. */
+  /** Publica um CSV e os metadados com nome único, preservando as execuções anteriores. */
   public static Path publishLatest(Path output, Path project) throws IOException {
     Path schedule = output.resolve("horario-exemplo.csv");
     if (!Files.isRegularFile(schedule)) throw new IOException("No schedule produced: " + output);
@@ -27,7 +29,7 @@ public final class ResultExporter {
     String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss-SSS"));
     String id = "Horario-" + stamp + "-" + java.util.UUID.randomUUID().toString().substring(0, 8);
     Path visible = directory.resolve(id + ".csv");
-    Files.copy(schedule, visible); // No REPLACE_EXISTING: no old CSV can be overwritten.
+    Files.copy(schedule, visible); // Não substitui um CSV já existente.
     Map<String, Object> metadata = new java.util.LinkedHashMap<>();
     metadata.put("csv", visible.getFileName().toString());
     Path absoluteOutput = output.toAbsolutePath().normalize();
@@ -51,6 +53,7 @@ public final class ResultExporter {
     return visible;
   }
 
+  /** Guarda a configuração, a proveniência e o diagnóstico anteriores à otimização. */
   public static void exportValidation(StudyInput input) throws IOException {
     Path output = input.output();
     if (Files.exists(output)) try (var entries = Files.list(output)) {
@@ -88,7 +91,7 @@ public final class ResultExporter {
     Files.writeString(output.resolve("validation.md"), text, StandardCharsets.UTF_8);
   }
 
-  /** Decode the files produced by ExecuteAlgorithms; no optimizer or indicators are implemented here. */
+  /** Descodifica FUN e VAR do jMetal, verifica as métricas e seleciona o horário representativo. */
   public static void exportNativeSchedules(Path output,
                                            org.uma.jmetal.lab.experiment.Experiment<IntegerSolution, List<IntegerSolution>> experiment,
                                            RoomPolicy policy) throws IOException {
@@ -135,7 +138,7 @@ public final class ResultExporter {
               metrics.printRecord(index, m.hardViolations(), problem.softPenalty(m), m.roomConflictPairs(),
                       m.unassignedRooms(), m.typeMismatches(), m.excessSeats(),
                       m.classConflictPairs(), m.sequenceViolations(), m.feasible());
-              // Complete data studies retain all native FUN/VAR points; export one representative CSV.
+              // Com allowIncompleteData, preserva FUN/VAR e exporta apenas um CSV representativo.
               if (!problem.config().allowIncompleteData())
                 writeSchedule(directory.resolve("schedule-%03d.csv".formatted(index)), problem, policy, assignments, m);
               double soft = problem.softPenalty(m);
@@ -179,7 +182,7 @@ public final class ResultExporter {
     }
   }
 
-  /** Checks coverage and local rules from the decoded assignments, not cached fitness. */
+  /** Verifica as ocorrências, as datas e as regras locais a partir das atribuições descodificadas. */
   public static void validateLocal(TimetableProblem problem, RoomPolicy policy, List<Assignment> assignments) {
     var config = problem.config();
     if (assignments.size() != problem.data().lessons().size()) throw new IllegalStateException("Incomplete schedule");
@@ -204,6 +207,7 @@ public final class ResultExporter {
       } else if (a.room() != null) throw new IllegalStateException("No-room activity consumed a physical room");
     }
   }
+  /** Grava cada aula e os seus indicadores de atribuição num CSV legível no Excel. */
   private static void writeSchedule(Path file, TimetableProblem problem, RoomPolicy policy,
                                     List<Assignment> assignments, ScheduleMetrics metrics) throws IOException {
     Set<Integer> conflicts = TimetableProblem.roomConflictLessons(assignments);
@@ -235,9 +239,11 @@ public final class ResultExporter {
     }
   }
 
+  /** Cria um escritor CSV em UTF-8 com cabeçalho e separador ponto e vírgula. */
   public static CSVPrinter printer(Path path, String... headers) throws IOException {
     return new CSVPrinter(Files.newBufferedWriter(path, StandardCharsets.UTF_8),
             CSVFormat.DEFAULT.builder().setDelimiter(';').setHeader(headers).build());
   }
+  /** Formata minutos desde a meia-noite como HH:mm:ss. */
   public static String clock(int minute) { return "%02d:%02d:00".formatted(minute / 60, minute % 60); }
 }

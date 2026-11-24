@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Explicit experiment inputs; missing real inputs are diagnosed, never guessed. */
+/** Guarda os parâmetros explícitos do cenário e da experiência. */
 public record StudyConfig(String scenario, boolean synthetic, String scheduleFile,
                           String roomsFile, String policyFile, LocalDate horizonStart, LocalDate horizonEnd,
                           int openingMinute, int closingMinute, int gridMinutes, Set<DayOfWeek> allowedDays,
@@ -16,6 +16,7 @@ public record StudyConfig(String scenario, boolean synthetic, String scheduleFil
                           int populationSize, int maxEvaluations, int independentRuns, int numberOfCores,
                           List<Integer> problemSizes, Map<String, Double> softWeights, boolean allowIncompleteData) {
 
+  /** Verifica a consistência dos parâmetros e dos perfis declarados no cenário. */
   public void validate() {
     if (scenario == null || scenario.isBlank()) throw new IllegalArgumentException("Missing scenario");
     if (gridMinutes <= 0 || openingMinute < 0 || closingMinute > 1440
@@ -45,6 +46,7 @@ public record StudyConfig(String scenario, boolean synthetic, String scheduleFil
     }
   }
 
+  /** Verifica se todas as turmas têm um perfil que contém o intervalo completo da aula. */
   public boolean preferred(Lesson lesson, int start, int end) {
     return lesson.groups().stream().allMatch(group -> {
       var profiles = profilesByClass.get(group);
