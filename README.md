@@ -4,11 +4,13 @@ Projeto de Sara Mateus e Yuran Eduardo para a UC de Otimização e Decisão em E
 
 O programa sugere uma sala para cada aula do horário do ISCTE de 2022/2023, mantendo o dia e a hora originais. Usa Java 21 e o algoritmo NSGA-II da biblioteca jMetal 7.9.
 
-**Resultado no horário completo (26 019 aulas):**
+**Resultado dos ensaios anteriores no horário completo (26 019 aulas), com quatro objetivos:**
 - 0 choques de sala e 0 aulas sem sala (regras hard);
 - 713 aulas (3%) numa sala de tipo diferente do pedido;
 - 9 lugares vazios por aula, em média;
-- cerca de 3 minutos de execução.
+- cerca de 3 minutos de execução por estudo com essa formulação.
+
+A versão atual executa as duas formulações no mesmo estudo: dois e quatro objetivos. Mantém os resultados separados e exige mais trabalho total do que executar apenas uma delas.
 
 O relatório final explica o percurso e as decisões. A [documentação técnica](docs/Guia-tecnico.md) descreve as classes, os objetivos, a correção de choques, a seleção do CSV e as limitações da versão atual.
 
@@ -38,21 +40,29 @@ A pasta de trabalho (working directory) deve ser a raiz do projeto. Em Windows t
 
 No início da execução deve aparecer:
 ```
-Timetable-26019: 26019 aulas, 26019 variáveis, 4 objetivos, 1 restrição.
+Timetable-26019-2obj: 26019 aulas, 26019 variáveis, 2 objetivos, 1 restrição.
+Timetable-26019-4obj: 26019 aulas, 26019 variáveis, 4 objetivos, 1 restrição.
 ```
-No fim aparece o resumo do melhor horário (`RESUMO DO MELHOR HORÁRIO`), com as violações de cada regra.
+No fim aparece um horário recomendado por problema, até seis destaques por frente e a localização da tabela com todas as alternativas. Não é necessário mudar de branch para comparar as duas formulações.
 
 ## 4. Onde ficam os resultados
 
-- **`Resultados-Horarios-CSV/Horario-<data>.csv`:** o horário final, para abrir no Excel (Dados → De Texto/CSV, UTF-8, separador `;`). Cada linha é uma aula, com a sala atribuída e as colunas `Estado`, `Tipo_sala_certo`, `Lugares_vazios` e `Choque_sala`, que mostram as violações dessa aula.
+- **`Resultados-Horarios-CSV/Timetable-<aulas>-2obj/` e `Timetable-<aulas>-4obj/`:** todos os horários com objetivos distintos da frente de cada problema, sem limite de seis. A opção 01 de cada pasta é a recomendada. Cada CSV tem um JSON com métricas, formulação, indicação de destaque e origem da solução. Abrir no Excel com UTF-8 e separador `;`.
+- **`Resultados-Horarios-CSV/Comparacao-<data>-<id>.csv`:** tabela completa com `Problema`, `Numero_objetivos`, ficheiros das opções e métricas comuns: choques, aulas sem sala, tipo errado, lugares vazios e pontuação soft. Não mistura as frentes de Pareto.
+- **`Resultados-Horarios-CSV/Destaques-<data>-<id>.csv`:** seleção de até seis opções de cada problema. As outras continuam na tabela completa e nos seus CSV. `RESULTADOS.txt` identifica os ficheiros e o recomendado de cada problema.
 - **`Resultados/reais/<cenário>/<data>/`:** os detalhes técnicos do jMetal (FUN, VAR, indicadores e métricas de todos os horários alternativos).
 
 Os novos resultados são guardados localmente e ignorados pelo Git. A pasta `Resultados-Horarios-CSV` ainda contém uma referência histórica V1 versionada, do modelo anterior; não deve ser confundida com o resultado da versão atual.
 
+As alternativas pertencem à frente não dominada agregada das execuções de cada problema, respeitando a mesma prioridade hard do algoritmo. Não se comparam diretamente vetores de dimensões diferentes. Soluções com os mesmos objetivos contam como uma opção, mesmo que tenham atribuições diferentes. Todas essas opções são exportadas. O limite de seis aplica-se apenas aos destaques de cada frente: inclui o recomendado, os extremos e outros compromissos escolhidos pela distância de aglomeração do jMetal. Se a frente tiver menos de seis alternativas, todas ficam em destaque. Os FUN/VAR continuam disponíveis nos detalhes técnicos.
+
+Em cada pasta técnica de execução, `problemas/Timetable-<aulas>-<2 ou 4>obj/` guarda o resumo, o CSV recomendado, as alternativas e as métricas desse problema. Na raiz, `alternatives-summary.csv` compara todas as opções e `solution-summary.json` contém um resumo por problema. Os indicadores jMetal usam referências separadas: não se devem comparar diretamente valores brutos de hipervolume ou distância entre formulações com dimensões e escalas diferentes.
+
 ## 5. Como funciona
 
 - **Variáveis:** uma por aula. O valor é a posição da sala numa lista de salas possíveis, que só contém salas de aula com lugares suficientes, ordenadas com o tipo pedido primeiro e da mais pequena para a maior.
-- **Objetivos (todos a minimizar):**
+- **Formulação com dois objetivos:** 0 = total das violações hard; 1 = tipo errado e lugares vazios, normalizados e ponderados por `softWeights`.
+- **Formulação com quatro objetivos (todos a minimizar):**
     - 0: choques de sala (hard);
     - 1: aulas sem sala (hard);
     - 2: aulas em sala de tipo errado (soft);
@@ -60,7 +70,9 @@ Os novos resultados são guardados localmente e ignorados pelo Git. A pasta `Res
 - **Restrição:** a soma das regras hard. Um horário com violações hard perde sempre para um horário sem violações.
 - **Horário inicial guloso:** o primeiro horário de cada execução coloca cada aula na primeira sala livre da sua lista.
 - **Correção de choques (repair):** cada horário novo (população inicial, cruzamento e mutação) passa por uma tentativa de correção. Se nenhuma candidata estiver livre, o choque permanece e é contabilizado; não há garantia geral de viabilidade.
-- **Parâmetros (`config/full.json`):** população 100, 5 000 avaliações, 2 execuções em 2 núcleos. Os pesos `softWeights` servem para escolher qual dos horários alternativos é exportado.
+- **Parâmetros (`config/full.json`):** população 100 e 5 000 avaliações por execução de cada problema, com 2 execuções por formulação em 2 núcleos. No cenário completo, são quatro execuções e um orçamento total de 20 000 avaliações. Os pesos `softWeights` definem o objetivo soft na formulação de dois objetivos e a recomendação de CSV nas duas formulações. Em quatro objetivos não ponderam a procura.
+
+Na formulação de dois objetivos, quando todos os candidatos são viáveis, o objetivo hard fica em zero e a seleção favorece a menor penalização soft. A frente pode ter apenas um vetor distinto. Em quatro objetivos, tipo errado e lugares vazios podem originar vários compromissos. O programa apresenta o que foi encontrado, sem fabricar alternativas.
 
 ## 6. Organização do repositório
 

@@ -18,6 +18,9 @@ import org.uma.jmetal.lab.experiment.component.impl.GenerateReferenceParetoFront
 import org.uma.jmetal.lab.experiment.component.impl.GenerateWilcoxonTestTablesWithR;
 import org.uma.jmetal.lab.experiment.util.ExperimentAlgorithm;
 import org.uma.jmetal.lab.experiment.util.ExperimentProblem;
+import org.uma.jmetal.lab.visualization.plot.impl.ScatterPlot;
+import org.uma.jmetal.util.VectorUtils;
+
 import org.uma.jmetal.qualityindicator.impl.Epsilon;
 import org.uma.jmetal.qualityindicator.impl.GenerationalDistance;
 import org.uma.jmetal.qualityindicator.impl.InvertedGenerationalDistance;
@@ -67,10 +70,12 @@ public final class NSGAIIStudy {
     List<ExperimentProblem<IntegerSolution>> problemList = new ArrayList<>();
     for (int size : config.problemSizes()) {
       // Seleciona as primeiras N aulas na ordem do CSV, sem filtragem implícita.
-      TimetableProblem problem = new TimetableProblem(size, data, config, policy);
-      problemList.add(new ExperimentProblem<>(problem).setReferenceFront(problem.name() + ".csv"));
-      System.out.printf("%s: %d aulas, %d variáveis, %d objetivos, 1 restrição.%n",
-              problem.name(), size, problem.numberOfVariables(), problem.numberOfObjectives());
+      for (int objectives : List.of(2, 4)) {
+        TimetableProblem problem = new TimetableProblem(size, data, config, policy, objectives);
+        problemList.add(new ExperimentProblem<>(problem).setReferenceFront(problem.name() + ".csv"));
+        System.out.printf("%s: %d aulas, %d variáveis, %d objetivos, 1 restrição.%n",
+                problem.name(), size, problem.numberOfVariables(), problem.numberOfObjectives());
+      }
     }
     List<ExperimentAlgorithm<IntegerSolution, List<IntegerSolution>>> algorithmList =
             configureAlgorithmList(problemList, config);
@@ -99,21 +104,40 @@ public final class NSGAIIStudy {
     new GenerateFriedmanTestTables<>(experiment).run();
     new GenerateBoxplotsWithR<>(experiment).setRows(2).setColumns(3).run();
 
+
+
     // Exporta os resultados nativos para o formato de horário, sem nova otimização.
     ResultExporter.exportNativeSchedules(output, experiment, policy);
     Files.writeString(output.resolve("LEIA-ME.md"),
             "# Estudo nativo jMetal\n\n"
-                    + "Modelo: só salas (dia e hora do CSV). Quatro objetivos e uma restrição. FUN = [choques de sala, aulas sem sala, tipo errado, lugares vazios].\n\n"
-                    + "O CSV horario-exemplo.csv representa o menor total de violações hard, seguido da menor pontuação soft ponderada, "
-                    + "entre as alternativas exportadas do maior problema. Pode conter violações; não é declarado ótimo. "
+                    + "Modelo: só salas (dia e hora do CSV). Cada tamanho executa dois problemas, ambos com uma restrição hard. "
+                    + "2obj: FUN = [violações hard, penalização soft ponderada]. "
+                    + "4obj: FUN = [choques de sala, aulas sem sala, tipo errado, lugares vazios].\n\n"
+                    + "Cada problema tem o seu CSV recomendado pelo menor total hard e pela menor penalização soft. "
+                    + "As frentes não são misturadas. Os horários podem conter violações; não são declarados ótimos. "
                     + "O algoritmo decide apenas as salas; as métricas de turma são diagnósticos dos horários fixos.\n\n"
                     + "Resultados nativos: NSGAIIStudy/data/ (FUN, VAR e indicadores), "
                     + "NSGAIIStudy/latex/, NSGAIIStudy/R/ e NSGAIIStudy/referenceFronts/. "
                     + "As referências são empíricas, obtidas das execuções; não são frentes ótimas conhecidas.\n\n"
-                    + "Métricas de todas as alternativas: horarios/. CSV representativo: horario-exemplo.csv. "
+                    + "Métricas de todas as alternativas: horarios/. Todos os CSV com objetivos distintos da frente de cada problema em problemas/<problema>/alternativas/. "
+                    + "Comparação completa: alternatives-summary.csv e alternatives.json. Até seis destaques: alternatives-highlights.csv. "
+                    + "CSV recomendado por problema: problemas/<problema>/horario-exemplo.csv. "
                     + "Relatório de seleção dos subproblemas: problem-instances.json.\n\n"
                     + "Os componentes WithR geram scripts; executar Render-Reports.ps1 para obter boxplots "
                     + "e tabelas Wilcoxon com R instalado.\n");
+    // Preserva a janela de visualização, mas permite executar sem interface gráfica.
+    if (!java.awt.GraphicsEnvironment.isHeadless()) for (var p : problemList) {
+      Path front = output.resolve("NSGAIIStudy/referenceFronts/" + p.getTag() + ".csv");
+      double[][] fun = VectorUtils.readVectors(front.toString(), ",");
+      double[][] pontos = new double[fun.length][2];
+      boolean fourObjectives = p.getProblem().numberOfObjectives() == 4;
+      for (int i = 0; i < fun.length; i++) {
+        pontos[i][0] = fun[i][fourObjectives ? 2 : 0];
+        pontos[i][1] = fun[i][fourObjectives ? 3 : 1];
+      }
+      String axes = fourObjectives ? ": tipo errado vs lugares vazios" : ": violações hard vs penalização soft";
+      new ScatterPlot(pontos, p.getTag() + axes).plot();
+    }
     return experiment;
   }
 
