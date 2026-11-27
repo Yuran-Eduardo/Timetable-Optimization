@@ -7,6 +7,39 @@ import org.uma.jmetal.util.comparator.dominanceComparator.impl.DominanceWithCons
 
 /** Verifica os objetivos e as regras do modelo atual, que decide apenas as salas. */
 class TimetableProblemTest {
+  /** A mesma atribuição produz as duas formulações, sem mudar genes, domínios ou restrição. */
+  @Test void avaliaAsDuasFormulacoesSobreAsMesmasSalas() {
+    var data = Fixtures.data(List.of(Fixtures.lesson("A", 480, 90, 30, Fixtures.NORMAL),
+        Fixtures.lesson("B", 510, 90, 40, Fixtures.LAB)), List.of(Fixtures.ROOM));
+    var config = Fixtures.config();
+    var validation = Preflight.inspect(data, Fixtures.policy(), config);
+    var two = new TimetableProblem(data, config, validation, 2);
+    var four = new TimetableProblem(data, config, validation, 4);
+    var first = two.createSolution();
+    var second = four.createSolution();
+    two.evaluate(first);
+    four.evaluate(second);
+    assertArrayEquals(new double[]{1, 1.5}, first.objectives(), 1e-12);
+    assertArrayEquals(new double[]{1, 0, 1, 30}, second.objectives(), 1e-12);
+    assertEquals(first.variables(), second.variables());
+    for (int i = 0; i < two.numberOfVariables(); i++) {
+      assertEquals(two.variableBounds().get(i).getLowerBound(), four.variableBounds().get(i).getLowerBound());
+      assertEquals(two.variableBounds().get(i).getUpperBound(), four.variableBounds().get(i).getUpperBound());
+    }
+    assertArrayEquals(first.constraints(), second.constraints());
+    assertNotEquals(two.name(), four.name());
+    var weighted = Fixtures.change(config, "softWeights", java.util.Map.of("type", 2.0, "seats", 1.0));
+    var weightedTwo = new TimetableProblem(data, weighted, validation, 2);
+    var weightedFour = new TimetableProblem(data, weighted, validation, 4);
+    var wt = weightedTwo.createSolution();
+    var wf = weightedFour.createSolution();
+    weightedTwo.evaluate(wt);
+    weightedFour.evaluate(wf);
+    assertEquals(2.0, wt.objectives()[1], 1e-12);
+    assertArrayEquals(second.objectives(), wf.objectives(), 1e-12);
+    assertThrows(IllegalArgumentException.class, () -> new TimetableProblem(data, config, validation, 3));
+  }
+
   /** Confirma os valores das quatro regras num horário com um choque e um tipo errado. */
   @Test void avaliaQuatroObjetivosERestricaoHard() {
     var data = Fixtures.data(List.of(Fixtures.lesson("A", 480, 90, 30, Fixtures.NORMAL),

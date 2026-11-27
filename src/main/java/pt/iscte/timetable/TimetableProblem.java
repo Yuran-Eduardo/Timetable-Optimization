@@ -14,7 +14,7 @@ import org.uma.jmetal.util.pseudorandom.JMetalRandom;
 
 /** Define e avalia a atribuição de salas, adaptando o exemplo NMMin. Cada aula tem uma variável inteira; o dia e a hora permanecem os do CSV. */
 public final class TimetableProblem extends AbstractIntegerProblem {
-  /** Um objetivo por regra: choques, aulas sem sala, tipo diferente do pedido e lugares vazios. */
+  /** Formulação por omissão: quatro critérios separados; o construtor também aceita dois objetivos. */
   public static final int OBJECTIVES = 4;
   public static final int GLOBAL_CONSTRAINTS = 1; // Restrição agregada das violações hard.
   public static final int VARIABLES_PER_OCCURRENCE = 1; // Apenas a sala é uma variável de decisão.
@@ -29,8 +29,14 @@ public final class TimetableProblem extends AbstractIntegerProblem {
 
   /** Cria um problema com as primeiras N aulas do ficheiro e uma variável por aula. */
   public TimetableProblem(int numberOfOccurrences, DataSet source, StudyConfig config, RoomPolicy policy) {
+    this(numberOfOccurrences, source, config, policy, OBJECTIVES);
+  }
+
+  /** Seleciona as mesmas aulas, escolhendo explicitamente a formulação de dois ou quatro objetivos. */
+  public TimetableProblem(int numberOfOccurrences, DataSet source, StudyConfig config, RoomPolicy policy,
+                          int objectiveCount) {
     this(select(numberOfOccurrences, source), config,
-            Preflight.inspect(select(numberOfOccurrences, source), policy, config));
+            Preflight.inspect(select(numberOfOccurrences, source), policy, config), objectiveCount);
   }
 
   /** Seleciona as primeiras N ocorrências, preservando os dados de origem. */
@@ -43,12 +49,19 @@ public final class TimetableProblem extends AbstractIntegerProblem {
 
   /** Valida a entrada e configura os limites dos genes, os objetivos, as escalas e a ordem de correção. */
   public TimetableProblem(DataSet data, StudyConfig config, Preflight.Result validation) {
+    this(data, config, validation, OBJECTIVES);
+  }
+
+  /** Partilha os domínios e as regras de salas entre as duas formulações do estudo. */
+  public TimetableProblem(DataSet data, StudyConfig config, Preflight.Result validation, int objectiveCount) {
+    if (objectiveCount != 2 && objectiveCount != 4)
+      throw new IllegalArgumentException("A formulação deve ter dois ou quatro objetivos");
     validation.requireRunnable(config);
     this.data = data; this.config = config; domains = validation.domains();
     if (domains.size() != data.lessons().size()) throw new IllegalArgumentException("Unmatched lesson domains");
-    name("Timetable-" + data.lessons().size());
+    name("Timetable-" + data.lessons().size() + "-" + objectiveCount + "obj");
     // Configura os objetivos e a restrição pela API do jMetal.
-    numberOfObjectives(OBJECTIVES);
+    numberOfObjectives(objectiveCount);
     numberOfConstraints(GLOBAL_CONSTRAINTS);
     int decisionVariables = Math.multiplyExact(VARIABLES_PER_OCCURRENCE, data.lessons().size());
     List<Integer> lower = new ArrayList<>(decisionVariables), upper = new ArrayList<>(decisionVariables);
@@ -61,7 +74,7 @@ public final class TimetableProblem extends AbstractIntegerProblem {
       upper.add(Math.max(0, domain.rooms().size() - 1));
     }
     variableBounds(lower, upper); // O número de variáveis corresponde ao número de aulas.
-    // Calcula escalas para a pontuação soft usada na seleção do CSV final.
+    // Escalas do objetivo soft na formulação de dois objetivos e da recomendação em ambas.
     long withRoom = 0;
     for (int i = 0; i < domains.size(); i++)
       if (data.lessons().get(i).needsRoom() && !domains.get(i).rooms().isEmpty()) withRoom++;
@@ -136,21 +149,23 @@ public final class TimetableProblem extends AbstractIntegerProblem {
     }
     return true;
   }
-  /** Atribui os quatro objetivos e o valor agregado da restrição hard à solução. */
+  /** Atribui os objetivos da formulação escolhida e a mesma restrição hard em ambas. */
   @Override public IntegerSolution evaluate(IntegerSolution solution) {
     // Durante a procura, calcula apenas as métricas que dependem das salas.
     ScheduleMetrics metrics = roomMetrics(data.lessons(), decode(solution));
     double hardViolations = metrics.hardViolations();
     double[] values = objectiveValues(metrics);
-    for (int k = 0; k < OBJECTIVES; k++) solution.objectives()[k] = values[k];
+    for (int k = 0; k < values.length; k++) solution.objectives()[k] = values[k];
     // No jMetal, zero satisfaz a restrição e um valor negativo indica violação.
     // O comparador dá prioridade a menores violações hard, antes dos objetivos.
     solution.constraints()[0] = -hardViolations;
     return solution;
   }
 
-  /** Devolve os quatro objetivos a minimizar: dois hard e dois soft. */
+  /** Devolve o agregado hard/soft ou os quatro critérios separados, conforme a formulação. */
   public double[] objectiveValues(ScheduleMetrics metrics) {
+    if (numberOfObjectives() == 2)
+      return new double[]{metrics.hardViolations(), softPenalty(metrics)};
     return new double[] {
             metrics.roomConflictPairs(), // 0 (hard): pares de aulas sobrepostas na mesma sala.
             metrics.unassignedRooms(),   // 1 (hard): aulas que precisam de sala e ficaram sem ela.
@@ -159,7 +174,7 @@ public final class TimetableProblem extends AbstractIntegerProblem {
     };
   }
 
-  /** Combina tipo e lugares com escalas fixas e pesos, apenas para selecionar e apresentar o CSV final. */
+  /** Combina tipo e lugares: objetivo 1 em dois objetivos e recomendação do CSV em ambas. */
   public double softPenalty(ScheduleMetrics metrics) {
     return config.softWeights().get("type") * metrics.typeMismatches() / typeScale
             + config.softWeights().get("seats") * metrics.excessSeats() / seatScale;

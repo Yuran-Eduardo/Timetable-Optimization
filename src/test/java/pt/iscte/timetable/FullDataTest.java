@@ -20,26 +20,29 @@ class FullDataTest {
     assertTrue(input.validation().runnable(input.config()));
     assertEquals(24755, input.validation().report().roomCoverage().get("AVAILABLE"));
     assertEquals(1264, input.validation().report().roomCoverage().get("NO_PHYSICAL_ROOM"));
-    var problem = new TimetableProblem(input.data(), input.config(), input.validation());
-    var solution = problem.createSolution();
-    problem.evaluate(solution);
-    assertEquals(26019, solution.variables().size());
-    assertEquals(4, solution.objectives().length);
-    assertEquals(1, solution.constraints().length);
-    for (double objective : solution.objectives()) assertTrue(Double.isFinite(objective));
-    var assignments = problem.decode(solution);
-    assertEquals(26019, assignments.size());
-    assertEquals(26019, assignments.stream().map(Assignment::lessonIndex).distinct().count());
-    assertEquals(24755, assignments.stream().filter(a -> a.room() != null).count());
-    for (var assignment : assignments) {
-      var lesson = input.data().lessons().get(assignment.lessonIndex());
-      assertEquals(lesson.originalDate(), assignment.date());
-      assertEquals(lesson.start(), assignment.start());
-      assertEquals(lesson.end(), assignment.end());
+    for (int objectives : List.of(2, 4)) {
+      var problem = new TimetableProblem(input.data(), input.config(), input.validation(), objectives);
+      var solution = problem.createSolution();
+      problem.evaluate(solution);
+      assertEquals(26019, solution.variables().size());
+      assertEquals(objectives, solution.objectives().length);
+      assertEquals(1, solution.constraints().length);
+      for (double objective : solution.objectives()) assertTrue(Double.isFinite(objective));
+      var assignments = problem.decode(solution);
+      assertEquals(26019, assignments.size());
+      assertEquals(26019, assignments.stream().map(Assignment::lessonIndex).distinct().count());
+      assertEquals(24755, assignments.stream().filter(a -> a.room() != null).count());
+      for (var assignment : assignments) {
+        var lesson = input.data().lessons().get(assignment.lessonIndex());
+        assertEquals(lesson.originalDate(), assignment.date());
+        assertEquals(lesson.start(), assignment.start());
+        assertEquals(lesson.end(), assignment.end());
+      }
+      ResultExporter.validateLocal(problem, input.policy(), assignments);
+      assertEquals(0, solution.objectives()[0]);
+      if (objectives == 4) assertEquals(0, solution.objectives()[1]);
+      else assertTrue(solution.objectives()[1] > 0);
+      assertEquals(0, solution.constraints()[0], 0.0);
     }
-    ResultExporter.validateLocal(problem, input.policy(), assignments);
-    assertEquals(0, solution.objectives()[0]);
-    assertEquals(0, solution.objectives()[1]);
-    assertEquals(0, solution.constraints()[0], 0.0);
   }
 }

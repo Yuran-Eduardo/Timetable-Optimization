@@ -11,46 +11,113 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.Map;
+import java.util.Comparator;
+import java.util.function.ToDoubleFunction;
+import org.uma.jmetal.util.archive.impl.NonDominatedSolutionListArchive;
+import org.uma.jmetal.util.densityestimator.impl.CrowdingDistanceDensityEstimator;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.uma.jmetal.solution.integersolution.IntegerSolution;
 
 /** Valida e exporta os horários obtidos pelo jMetal e os respetivos metadados. */
 public final class ResultExporter {
+  private static final int MAX_HIGHLIGHTS = 6;
+  private static final String CANDIDATE = "timetable-export-candidate";
+
+  /** Guarda a origem e as métricas, sem manter uma cópia descodificada de cada horário. */
+  private record Candidate(TimetableProblem problem, ScheduleMetrics metrics, String algorithm,
+                           int run, int nativeSolution) {}
   /** Impede a criação de instâncias desta classe utilitária. */
   private ResultExporter() {}
 
-  /** Publica um CSV e os metadados com nome único, preservando as execuções anteriores. */
+  /** Publica toda a frente, distinguindo até seis destaques sem ocultar as restantes alternativas. */
+  @SuppressWarnings("unchecked")
   public static Path publishLatest(Path output, Path project) throws IOException {
-    Path schedule = output.resolve("horario-exemplo.csv");
-    if (!Files.isRegularFile(schedule)) throw new IOException("No schedule produced: " + output);
     Path directory = project.resolve("Resultados-Horarios-CSV");
     Files.createDirectories(directory);
-    String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss-SSS"));
-    String id = "Horario-" + stamp + "-" + java.util.UUID.randomUUID().toString().substring(0, 8);
-    Path visible = directory.resolve(id + ".csv");
-    Files.copy(schedule, visible); // Não substitui um CSV já existente.
-    Map<String, Object> metadata = new java.util.LinkedHashMap<>();
-    metadata.put("csv", visible.getFileName().toString());
+    String stamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("uuuuMMdd-HHmmss-SSS"))
+            + "-" + java.util.UUID.randomUUID().toString().substring(0, 8);
     Path absoluteOutput = output.toAbsolutePath().normalize();
     Path absoluteProject = project.toAbsolutePath().normalize();
-    metadata.put("experimentDirectory", absoluteOutput.startsWith(absoluteProject)
+    Map<String, Object> baseMetadata = new java.util.LinkedHashMap<>();
+    baseMetadata.put("experimentDirectory", absoluteOutput.startsWith(absoluteProject)
             ? absoluteProject.relativize(absoluteOutput).toString().replace('\\', '/') : absoluteOutput.toString());
     for (String name : List.of("configuration", "solution-summary", "provenance")) {
       Path file = output.resolve(name + ".json");
-      if (Files.isRegularFile(file)) metadata.put(name, JsonFiles.MAPPER.readTree(file.toFile()));
+      if (Files.isRegularFile(file)) baseMetadata.put(name, JsonFiles.MAPPER.readTree(file.toFile()));
     }
-    JsonFiles.write(directory.resolve(id + ".json"), metadata);
-    Files.writeString(project.resolve("RESULTADOS.txt"),
-            "Último estudo concluído: " + output.toAbsolutePath() + "\n"
-                    + "ABRIR: " + visible.toAbsolutePath() + "\n"
-                    + "Os CSVs de execuções anteriores permanecem em Resultados-Horarios-CSV.\n"
-                    + "O CSV pode conter conflitos e casos por atribuir; consultar Estado e solution-summary.json.\n"
-                    + (Files.exists(output.resolve("solution-summary.json"))
-                    ? Files.readString(output.resolve("solution-summary.json"), StandardCharsets.UTF_8) : "")
-                    + "\nOs detalhes e as alternativas estão na pasta da execução.\n", StandardCharsets.UTF_8);
-    System.out.println("ABRIR NO EXCEL: " + visible);
-    return visible;
+    List<Map<String, Object>> options = new ArrayList<>();
+    Path manifest = output.resolve("alternatives.json");
+    if (Files.isRegularFile(manifest)) {
+      var root = JsonFiles.MAPPER.readTree(manifest.toFile());
+      var entries = root.path("options");
+      if (!entries.isArray() || entries.isEmpty())
+        throw new IOException("Lista de alternativas inválida");
+      for (var node : entries) options.add(JsonFiles.MAPPER.convertValue(node, Map.class));
+      baseMetadata.put("paretoPoints", root.path("paretoPoints").asInt());
+      if (root.has("problems")) baseMetadata.put("problems", root.path("problems"));
+    } else {
+      // Continua a aceitar a publicação de um resultado representativo criado por versões anteriores.
+      options.add(new java.util.LinkedHashMap<>(Map.of("option", 1, "recommended", true,
+              "highlighted", true, "file", "horario-exemplo.csv")));
+    }
+    List<Map<String, Object>> published = new ArrayList<>();
+    Path first = null;
+    for (int index = 0; index < options.size(); index++) {
+      var option = options.get(index);
+      option.putIfAbsent("highlighted", true); // Compatibilidade com os manifestos anteriores, limitados a seis opções.
+      Path source = absoluteOutput.resolve((String) option.get("file")).normalize();
+      if (!source.startsWith(absoluteOutput) || !Files.isRegularFile(source))
+        throw new IOException("CSV da alternativa ausente ou fora da execução: " + source);
+      String problem = (String) option.getOrDefault("problem", "");
+      Path problemDirectory = problem.isEmpty() ? directory
+              : directory.resolve(problem.replaceAll("[^A-Za-z0-9._-]", "_"));
+      Files.createDirectories(problemDirectory);
+      int optionNumber = ((Number) option.get("option")).intValue();
+      String id = "Horario-" + stamp + "-opcao-%02d".formatted(optionNumber);
+      Path visible = problemDirectory.resolve(id + ".csv");
+      String relativeCsv = directory.relativize(visible).toString().replace('\\', '/');
+      Files.copy(source, visible); // Preserva todos os CSV publicados anteriormente.
+      Map<String, Object> metadata = new java.util.LinkedHashMap<>(baseMetadata);
+      metadata.put("csv", relativeCsv);
+      metadata.put("option", optionNumber);
+      metadata.put("problem", problem);
+      metadata.put("recommended", option.get("recommended"));
+      metadata.put("highlighted", option.get("highlighted"));
+      if (Files.isRegularFile(manifest)) metadata.put("solution-summary", option);
+      JsonFiles.write(problemDirectory.resolve(id + ".json"), metadata);
+      var comparisonRow = new java.util.LinkedHashMap<>(option);
+      comparisonRow.put("csv", relativeCsv);
+      published.add(comparisonRow);
+      if (first == null) first = visible;
+      if (Boolean.TRUE.equals(option.get("highlighted")))
+        System.out.println("DESTAQUE " + problem + " — OPÇÃO " + optionNumber
+                + (Boolean.TRUE.equals(option.get("recommended")) ? " (recomendada)" : "") + ": " + visible);
+    }
+    Path comparison = directory.resolve("Comparacao-" + stamp + ".csv");
+    writeComparison(comparison, published, "csv");
+    var highlighted = published.stream().filter(row -> Boolean.TRUE.equals(row.get("highlighted"))).toList();
+    Path highlights = directory.resolve("Destaques-" + stamp + ".csv");
+    writeComparison(highlights, highlighted, "csv");
+    Map<String, Object> publication = new java.util.LinkedHashMap<>(baseMetadata);
+    publication.put("exportedAlternatives", published.size());
+    publication.put("highlightedAlternatives", highlighted.size());
+    publication.put("highlightLimitPerProblem", MAX_HIGHLIGHTS);
+    publication.put("options", published);
+    JsonFiles.write(directory.resolve("Comparacao-" + stamp + ".json"), publication);
+    StringBuilder pointer = new StringBuilder("Último estudo concluído: " + absoluteOutput + "\n")
+            .append("TODAS AS ").append(published.size()).append(" OPÇÕES: ").append(comparison.toAbsolutePath()).append("\n")
+            .append("DESTAQUES: ").append(highlights.toAbsolutePath()).append("\n");
+    for (var row : published) if (Boolean.TRUE.equals(row.get("recommended")))
+      pointer.append("RECOMENDADO ").append(row.getOrDefault("problem", "")).append(": ")
+              .append(directory.resolve((String) row.get("csv")).toAbsolutePath()).append("\n");
+    for (var row : highlighted) pointer.append(row.getOrDefault("problem", "")).append(" — Opção ").append(row.get("option")).append(": ")
+            .append(directory.resolve((String) row.get("csv")).toAbsolutePath()).append("\n");
+    pointer.append("Os horários anteriores permanecem guardados. Cada CSV deve ser analisado quanto a violações hard.\n");
+    Files.writeString(project.resolve("RESULTADOS.txt"), pointer, StandardCharsets.UTF_8);
+    System.out.println("COMPARAR NO EXCEL: " + comparison);
+    System.out.println("DESTAQUES: " + highlights + " | Todas as " + published.size() + " opções permanecem disponíveis.");
+    return first;
   }
 
   /** Guarda a configuração, a proveniência e o diagnóstico anteriores à otimização. */
@@ -65,7 +132,8 @@ public final class ResultExporter {
             "configSha256", CsvDataLoader.sha256(input.configFile()),
             "policySha256", CsvDataLoader.sha256(input.policyFile()),
             "sources", input.data().sourceHashes(), "jdk", System.getProperty("java.version"),
-            "jmetal", "7.9", "datasetLabel", input.config().synthetic() ? "SYNTHETIC" : "REAL_SOURCE_DATA"));
+            "jmetal", "7.9", "objectiveCounts", List.of(2, 4),
+            "datasetLabel", input.config().synthetic() ? "SYNTHETIC" : "REAL_SOURCE_DATA"));
     Files.copy(input.policyFile(), output.resolve("compatibility-policy.json"));
     Path schedule = input.configFile().getParent().resolve(input.config().scheduleFile()).normalize();
     String filename = schedule.getFileName().toString();
@@ -81,48 +149,50 @@ public final class ResultExporter {
     text.append("\nBloqueios de configuração/entrada: ").append(report.globalBlockers())
             .append("\n\nTurmas sem perfil: ").append(report.missingProfiles().size())
             .append("\n\nDomínios individuais não vazios não demonstram viabilidade conjunta.\n");
-    text.append("\nModelo vigente: 1 variável (sala) por aula; 4 objetivos e 1 restrição. Objetivo 0: choques de sala. Objetivo 1: aulas sem sala. Objetivo 2: tipo de sala errado. Objetivo 3: lugares vazios. Restrição: total das regras hard.\n");
+    text.append("\nModelo vigente: 1 variável (sala) por aula. Cada tamanho é avaliado com dois problemas, de 2 e 4 objetivos, ambos com uma restrição hard. "
+            + "2obj: total hard e penalização soft ponderada. 4obj: choques de sala, aulas sem sala, tipo errado e lugares vazios.\n");
     text.append("\nExecução diagnóstica de dados incompletos autorizada na configuração: ")
             .append(input.config().allowIncompleteData()).append(". Pode executar: ")
             .append(input.validation().runnable(input.config())).append(".\n")
             .append("Sem sala elegível: mantém sala em branco e penaliza a falta de atribuição. ")
             .append("Sem data: mantém data/hora em branco e identifica a informação incompleta, sem criar um objetivo adicional. ")
-            .append("Os perfis de horário não fazem parte dos quatro objetivos; os pesos type e seats só selecionam o CSV final.\n");
+            .append("Os perfis de horário não são objetivos. Os pesos type e seats definem o objetivo soft em 2obj e selecionam o recomendado em ambas as formulações.\n");
     Files.writeString(output.resolve("validation.md"), text, StandardCharsets.UTF_8);
   }
 
-  /** Descodifica FUN e VAR do jMetal, verifica as métricas e seleciona o horário representativo. */
+  /** Descodifica FUN/VAR e exporta as frentes e recomendações, isoladas por problema. */
   public static void exportNativeSchedules(Path output,
                                            org.uma.jmetal.lab.experiment.Experiment<IntegerSolution, List<IntegerSolution>> experiment,
                                            RoomPolicy policy) throws IOException {
+    if (experiment.getProblemList().size() > 1) {
+      exportSeparateProblems(output, experiment, policy);
+      return;
+    }
     List<Object> instances = new ArrayList<>();
-    int largest = experiment.getProblemList().stream()
-            .mapToInt(p -> ((TimetableProblem) p.getProblem()).data().lessons().size()).max().orElseThrow();
-    TimetableProblem selectedProblem = null;
-    List<Assignment> selectedSchedule = null;
-    ScheduleMetrics selectedMetrics = null;
-    double bestHard = Double.POSITIVE_INFINITY, bestSoft = Double.POSITIVE_INFINITY;
+    var front = new NonDominatedSolutionListArchive<IntegerSolution>();
     for (var instance : experiment.getProblemList()) {
       TimetableProblem problem = (TimetableProblem) instance.getProblem();
       instances.add(Map.of("problem", instance.getTag(), "occurrences", problem.data().lessons().size(),
-              "variables", problem.numberOfVariables(), "selection", "First N occurrences in configured CSV order",
+              "variables", problem.numberOfVariables(), "objectiveCount", problem.numberOfObjectives(),
+              "selection", "First N occurrences in configured CSV order",
               "sourceRows", problem.data().lessons().stream().map(Lesson::sourceRow).toList()));
-      for (var algorithm : experiment.getAlgorithmList()) {
+      for (String algorithm : experiment.getAlgorithmList().stream()
+              .map(a -> a.getAlgorithmTag()).distinct().toList()) {
         for (int run = 0; run < experiment.getIndependentRuns(); run++) {
           Path nativeDirectory = Path.of(experiment.getExperimentBaseDirectory(), "data",
-                  algorithm.getAlgorithmTag(), instance.getTag());
+                  algorithm, instance.getTag());
           double[][] objectives = org.uma.jmetal.util.VectorUtils.readVectors(nativeDirectory.resolve("FUN" + run + ".csv").toString(), ",");
           double[][] variables = org.uma.jmetal.util.VectorUtils.readVectors(nativeDirectory.resolve("VAR" + run + ".csv").toString(), ",");
           if (objectives.length != variables.length) throw new IOException("FUN/VAR row mismatch");
           Path directory = output.resolve("horarios").resolve(instance.getTag())
-                  .resolve(algorithm.getAlgorithmTag()).resolve("run-" + run);
+                  .resolve(algorithm).resolve("run-" + run);
           Files.createDirectories(directory);
           try (var metrics = printer(directory.resolve("metrics.csv"), "solution", "hard_violations", "soft_penalty",
                   "room_conflicts", "unassigned_rooms", "type_mismatches", "excess_seats",
                   "class_conflicts_fixed", "sequence_violations_fixed", "hard_zero")) {
             for (int index = 0; index < variables.length; index++) {
               var solution = new org.uma.jmetal.solution.integersolution.impl.DefaultIntegerSolution(
-                      problem.variableBounds(), TimetableProblem.OBJECTIVES, 0);
+                      problem.variableBounds(), problem.numberOfObjectives(), 1);
               if (variables[index].length != problem.numberOfVariables()) throw new IOException("Wrong VAR dimensions");
               for (int gene = 0; gene < variables[index].length; gene++) {
                 double value = variables[index][gene];
@@ -138,26 +208,75 @@ public final class ResultExporter {
               metrics.printRecord(index, m.hardViolations(), problem.softPenalty(m), m.roomConflictPairs(),
                       m.unassignedRooms(), m.typeMismatches(), m.excessSeats(),
                       m.classConflictPairs(), m.sequenceViolations(), m.feasible());
-              // Com allowIncompleteData, preserva FUN/VAR e exporta apenas um CSV representativo.
+              // Preserva os resultados nativos, independentemente do limite de CSV publicados.
               if (!problem.config().allowIncompleteData())
                 writeSchedule(directory.resolve("schedule-%03d.csv".formatted(index)), problem, policy, assignments, m);
-              double soft = problem.softPenalty(m);
-              if (problem.data().lessons().size() == largest
-                      && (m.hardViolations() < bestHard || m.hardViolations() == bestHard && soft < bestSoft)) {
-                bestHard = m.hardViolations(); bestSoft = soft;
-                selectedProblem = problem; selectedSchedule = assignments; selectedMetrics = m;
-              }
+              System.arraycopy(objectives[index], 0, solution.objectives(), 0, problem.numberOfObjectives());
+              solution.constraints()[0] = -m.hardViolations();
+              solution.attributes().put(CANDIDATE, new Candidate(problem, m, algorithm, run, index));
+              front.add(solution);
             }
           }
         }
       }
     }
     JsonFiles.write(output.resolve("problem-instances.json"), instances);
-    if (selectedSchedule != null) {
-      writeSchedule(output.resolve("horario-exemplo.csv"), selectedProblem, policy, selectedSchedule, selectedMetrics);
+    ToDoubleFunction<IntegerSolution> softScore = solution -> {
+      Candidate candidate = (Candidate) solution.attributes().get(CANDIDATE);
+      return candidate.problem().softPenalty(candidate.metrics());
+    };
+    var highlights = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<IntegerSolution, Boolean>());
+    highlights.addAll(selectAlternatives(front.solutions(), MAX_HIGHLIGHTS, softScore));
+    var alternatives = new ArrayList<>(front.solutions());
+    alternatives.sort(Comparator.comparingDouble((IntegerSolution s) -> -s.constraints()[0])
+            .thenComparingDouble(softScore));
+    List<Map<String, Object>> exported = new ArrayList<>();
+    if (!alternatives.isEmpty()) {
+      Files.createDirectories(output.resolve("alternativas"));
+      for (int index = 0; index < alternatives.size(); index++) {
+        var solution = alternatives.get(index);
+        Candidate candidate = (Candidate) solution.attributes().get(CANDIDATE);
+        String file = "alternativas/horario-%02d.csv".formatted(index + 1);
+        writeSchedule(output.resolve(file), candidate.problem(), policy,
+                candidate.problem().decode(solution), candidate.metrics());
+        Map<String, Object> option = new java.util.LinkedHashMap<>();
+        option.put("option", index + 1);
+        option.put("recommended", index == 0);
+        option.put("highlighted", highlights.contains(solution));
+        option.put("file", file);
+        option.put("problem", candidate.problem().name());
+        option.put("objectiveCount", candidate.problem().numberOfObjectives());
+        option.put("algorithm", candidate.algorithm());
+        option.put("run", candidate.run());
+        option.put("nativeSolution", candidate.nativeSolution());
+        option.put("occurrences", candidate.problem().data().lessons().size());
+        option.put("objectives", solution.objectives());
+        option.put("hardViolations", candidate.metrics().hardViolations());
+        option.put("roomConflictPairs", candidate.metrics().roomConflictPairs());
+        option.put("unassignedRooms", candidate.metrics().unassignedRooms());
+        option.put("typeMismatches", candidate.metrics().typeMismatches());
+        option.put("excessSeats", candidate.metrics().excessSeats());
+        option.put("softPenalty", softScore.applyAsDouble(solution));
+        exported.add(option);
+      }
+      JsonFiles.write(output.resolve("alternatives.json"), Map.of("paretoPoints", front.size(),
+              "exportedAlternatives", exported.size(), "highlightLimit", MAX_HIGHLIGHTS,
+              "highlightedAlternatives", highlights.size(), "options", exported));
+      writeComparison(output.resolve("alternatives-summary.csv"), exported, "file");
+      writeComparison(output.resolve("alternatives-highlights.csv"),
+              exported.stream().filter(row -> Boolean.TRUE.equals(row.get("highlighted"))).toList(), "file");
+      Candidate recommended = (Candidate) alternatives.getFirst().attributes().get(CANDIDATE);
+      TimetableProblem selectedProblem = recommended.problem();
+      List<Assignment> selectedSchedule = selectedProblem.decode(alternatives.getFirst());
+      ScheduleMetrics selectedMetrics = recommended.metrics();
+      double bestHard = selectedMetrics.hardViolations(), bestSoft = selectedProblem.softPenalty(selectedMetrics);
+      // Mantém o ficheiro representativo para compatibilidade com os consumidores existentes.
+      Files.copy(output.resolve((String) exported.getFirst().get("file")), output.resolve("horario-exemplo.csv"));
       long withRoom = selectedSchedule.stream().filter(a -> a.room() != null).count();
       Map<String, Object> summary = new java.util.LinkedHashMap<>();
       summary.put("occurrences", selectedSchedule.size());
+      summary.put("problem", selectedProblem.name());
+      summary.put("objectiveCount", selectedProblem.numberOfObjectives());
       summary.put("hardViolations", bestHard);
       summary.put("softPenalty", bestSoft);
       summary.put("roomConflictPairs", selectedMetrics.roomConflictPairs());
@@ -167,10 +286,13 @@ public final class ResultExporter {
       summary.put("excessSeats", selectedMetrics.excessSeats());
       summary.put("classConflictPairsFixedByTimes", selectedMetrics.classConflictPairs());
       summary.put("sequenceViolationsFixedByTimes", selectedMetrics.sequenceViolations());
-      summary.put("selection", "Menor total de violações hard, seguido da menor pontuação soft ponderada, entre os resultados nativos da maior instância");
+      summary.put("selection", "Menor total de violações hard, seguido da menor pontuação soft ponderada, entre os resultados nativos deste problema");
+      summary.put("paretoPoints", front.size());
+      summary.put("exportedAlternatives", exported.size());
+      summary.put("highlightedAlternatives", highlights.size());
       JsonFiles.write(output.resolve("solution-summary.json"), summary);
       System.out.println();
-      System.out.println("===== RESUMO DO MELHOR HORÁRIO =====");
+      System.out.println("===== HORÁRIO RECOMENDADO: " + selectedProblem.name() + " =====");
       System.out.println("Aulas: " + selectedSchedule.size() + " | com sala: " + withRoom);
       System.out.println("[HARD] Pares de aulas na mesma sala à mesma hora: " + selectedMetrics.roomConflictPairs());
       System.out.println("[HARD] Aulas que precisam de sala e ficaram sem sala: " + selectedMetrics.unassignedRooms());
@@ -178,10 +300,88 @@ public final class ResultExporter {
               + " (" + Math.round(100.0 * selectedMetrics.typeMismatches() / Math.max(1, withRoom)) + "%)");
       System.out.println("[SOFT] Lugares vazios (soma): " + selectedMetrics.excessSeats()
               + " | média por aula: " + Math.round((double) selectedMetrics.excessSeats() / Math.max(1, withRoom)));
-      System.out.println("Objetivos: 0 = " + selectedMetrics.roomConflictPairs()
-              + " | 1 = " + selectedMetrics.unassignedRooms()
-              + " | 2 = " + selectedMetrics.typeMismatches()
-              + " | 3 = " + selectedMetrics.excessSeats());
+      System.out.println("Objetivos: " + java.util.Arrays.toString(selectedProblem.objectiveValues(selectedMetrics)));
+      System.out.println("Alternativas distintas na frente agregada: " + front.size()
+              + " | CSV disponíveis: " + alternatives.size() + " | Destaques: " + highlights.size() + ".");
+    }
+  }
+
+  /** Exporta cada frente isoladamente e reúne apenas a tabela de métricas comuns, sem misturar dominâncias. */
+  @SuppressWarnings("unchecked")
+  private static void exportSeparateProblems(Path output,
+      org.uma.jmetal.lab.experiment.Experiment<IntegerSolution, List<IntegerSolution>> experiment,
+      RoomPolicy policy) throws IOException {
+    List<Map<String, Object>> options = new ArrayList<>(), summaries = new ArrayList<>();
+    List<Object> instances = new ArrayList<>();
+    for (var instance : experiment.getProblemList()) {
+      String tag = instance.getTag();
+      Path childOutput = output.resolve("problemas").resolve(tag);
+      var singleProblem = new org.uma.jmetal.lab.experiment.ExperimentBuilder<IntegerSolution, List<IntegerSolution>>(
+              experiment.getExperimentName()).setProblemList(List.of(instance))
+              .setAlgorithmList(experiment.getAlgorithmList())
+              .setExperimentBaseDirectory(Path.of(experiment.getExperimentBaseDirectory()).getParent().toString())
+              .setIndependentRuns(experiment.getIndependentRuns()).build();
+      // A experiência serve só para localizar FUN/VAR já calculados; não executa novamente o algoritmo.
+      exportNativeSchedules(childOutput, singleProblem, policy);
+      var manifest = JsonFiles.MAPPER.readTree(childOutput.resolve("alternatives.json").toFile());
+      for (var node : manifest.path("options")) {
+        Map<String, Object> option = JsonFiles.MAPPER.convertValue(node, Map.class);
+        option.put("file", "problemas/" + tag + "/" + option.get("file"));
+        options.add(option);
+      }
+      summaries.add(JsonFiles.MAPPER.convertValue(
+              JsonFiles.MAPPER.readTree(childOutput.resolve("solution-summary.json").toFile()), Map.class));
+      JsonFiles.MAPPER.readTree(childOutput.resolve("problem-instances.json").toFile()).forEach(instances::add);
+    }
+    var highlights = options.stream().filter(row -> Boolean.TRUE.equals(row.get("highlighted"))).toList();
+    JsonFiles.write(output.resolve("problem-instances.json"), instances);
+    JsonFiles.write(output.resolve("solution-summary.json"), Map.of("problems", summaries));
+    JsonFiles.write(output.resolve("alternatives.json"), Map.of("problems", summaries,
+            "paretoPoints", options.size(), "exportedAlternatives", options.size(),
+            "highlightLimitPerProblem", MAX_HIGHLIGHTS, "highlightedAlternatives", highlights.size(), "options", options));
+    writeComparison(output.resolve("alternatives-summary.csv"), options, "file");
+    writeComparison(output.resolve("alternatives-highlights.csv"), highlights, "file");
+  }
+
+  /** Escolhe os destaques: recomendado, extremos dos objetivos e diversidade pela aglomeração do jMetal. */
+  static List<IntegerSolution> selectAlternatives(List<IntegerSolution> candidates, int limit,
+                                                 ToDoubleFunction<IntegerSolution> softScore) {
+    if (limit < 1) throw new IllegalArgumentException("O limite deve ser positivo");
+    var archive = new NonDominatedSolutionListArchive<IntegerSolution>();
+    candidates.forEach(archive::add);
+    Comparator<IntegerSolution> preference = Comparator
+            .comparingDouble((IntegerSolution s) -> -s.constraints()[0])
+            .thenComparingDouble(softScore);
+    var result = new ArrayList<>(archive.solutions());
+    result.sort(preference);
+    if (result.isEmpty()) return result;
+    var recommended = result.getFirst();
+    var protectedOptions = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<IntegerSolution, Boolean>());
+    protectedOptions.add(recommended);
+    for (int objective = 0; objective < recommended.objectives().length && protectedOptions.size() < limit; objective++) {
+      final int index = objective;
+      protectedOptions.add(result.stream().min(Comparator.comparingDouble((IntegerSolution s) -> s.objectives()[index])
+              .thenComparing(preference)).orElseThrow());
+    }
+    var density = new CrowdingDistanceDensityEstimator<IntegerSolution>();
+    while (result.size() > limit) {
+      density.compute(result);
+      var worst = result.stream().filter(s -> !protectedOptions.contains(s))
+              .min(Comparator.comparingDouble(density::value)).orElseThrow();
+      result.removeIf(s -> s == worst);
+    }
+    result.sort(preference);
+    return result;
+  }
+
+  /** Escreve um índice para comparar alternativas, separado dos CSV de aulas. */
+  private static void writeComparison(Path file, List<Map<String, Object>> options, String fileKey) throws IOException {
+    try (var csv = printer(file, "Problema", "Numero_objetivos", "Opcao", "Recomendado", "Destaque", "CSV", "Violacoes_hard", "Choques_sala",
+            "Aulas_sem_sala", "Tipo_sala_errado", "Lugares_vazios", "Pontuacao_soft")) {
+      for (var option : options) csv.printRecord(option.get("problem"), option.get("objectiveCount"),
+              option.get("option"), option.get("recommended"), option.get("highlighted"),
+              option.get(fileKey), option.get("hardViolations"), option.get("roomConflictPairs"),
+              option.get("unassignedRooms"), option.get("typeMismatches"), option.get("excessSeats"), option.get("softPenalty"));
     }
   }
 
@@ -218,7 +418,7 @@ public final class ResultExporter {
             "Inscritos", "Data_original", "Sala_original", "Data", "Inicio", "Fim", "Sala",
             "Capacidade_Normal", "synthetic", "hard_violations", "soft_penalty",
             "Pedido_sala_original", "Duracao_original_min", "Estado",
-            "Tipo_sala_certo", "Lugares_vazios", "Choque_sala")) {
+            "Tipo_sala_certo", "Lugares_vazios", "Choque_sala", "Problema", "Numero_objetivos")) {
       for (Assignment a : assignments.stream().sorted(java.util.Comparator.comparing(Assignment::date,
                       java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder()))
               .thenComparingInt(Assignment::start).thenComparingInt(Assignment::lessonIndex)).toList()) {
@@ -237,7 +437,7 @@ public final class ResultExporter {
                 lesson.requestedFeature(), lesson.duration(), issues.isEmpty() ? "SALA_ATRIBUIDA" : String.join("|", issues),
                 a.room() == null ? "" : a.room().features().contains(lesson.requestedFeature()) ? "SIM" : "NAO",
                 a.room() == null ? "" : Math.max(0, a.room().capacity() - lesson.students()),
-                conflicts.contains(a.lessonIndex()) ? "SIM" : "NAO");
+                conflicts.contains(a.lessonIndex()) ? "SIM" : "NAO", problem.name(), problem.numberOfObjectives());
       }
     }
   }
