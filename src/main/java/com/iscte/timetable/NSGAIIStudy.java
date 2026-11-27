@@ -1,5 +1,6 @@
 package com.iscte.timetable;
 
+import java.awt.Color;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,9 +19,6 @@ import org.uma.jmetal.lab.experiment.component.impl.GenerateReferenceParetoFront
 import org.uma.jmetal.lab.experiment.component.impl.GenerateWilcoxonTestTablesWithR;
 import org.uma.jmetal.lab.experiment.util.ExperimentAlgorithm;
 import org.uma.jmetal.lab.experiment.util.ExperimentProblem;
-import org.uma.jmetal.lab.visualization.plot.impl.ScatterPlot;
-import org.uma.jmetal.util.VectorUtils;
-
 import org.uma.jmetal.qualityindicator.impl.Epsilon;
 import org.uma.jmetal.qualityindicator.impl.GenerationalDistance;
 import org.uma.jmetal.qualityindicator.impl.InvertedGenerationalDistance;
@@ -37,6 +35,8 @@ import pt.iscte.timetable.StudyInput;
 import pt.iscte.timetable.TimetableCrossover;
 import pt.iscte.timetable.TimetableMutation;
 import pt.iscte.timetable.TimetableProblem;
+import smile.plot.swing.Canvas;
+import smile.plot.swing.ScatterPlot;
 
 /** Configura e executa o estudo de atribuição de salas pela infraestrutura experimental do jMetal. */
 public final class NSGAIIStudy {
@@ -104,8 +104,6 @@ public final class NSGAIIStudy {
     new GenerateFriedmanTestTables<>(experiment).run();
     new GenerateBoxplotsWithR<>(experiment).setRows(2).setColumns(3).run();
 
-
-
     // Exporta os resultados nativos para o formato de horário, sem nova otimização.
     ResultExporter.exportNativeSchedules(output, experiment, policy);
     Files.writeString(output.resolve("LEIA-ME.md"),
@@ -125,19 +123,8 @@ public final class NSGAIIStudy {
                     + "Relatório de seleção dos subproblemas: problem-instances.json.\n\n"
                     + "Os componentes WithR geram scripts; executar Render-Reports.ps1 para obter boxplots "
                     + "e tabelas Wilcoxon com R instalado.\n");
-    // Preserva a janela de visualização, mas permite executar sem interface gráfica.
-    if (!java.awt.GraphicsEnvironment.isHeadless()) for (var p : problemList) {
-      Path front = output.resolve("NSGAIIStudy/referenceFronts/" + p.getTag() + ".csv");
-      double[][] fun = VectorUtils.readVectors(front.toString(), ",");
-      double[][] pontos = new double[fun.length][2];
-      boolean fourObjectives = p.getProblem().numberOfObjectives() == 4;
-      for (int i = 0; i < fun.length; i++) {
-        pontos[i][0] = fun[i][fourObjectives ? 2 : 0];
-        pontos[i][1] = fun[i][fourObjectives ? 3 : 1];
-      }
-      String axes = fourObjectives ? ": tipo errado vs lugares vazios" : ": violações hard vs penalização soft";
-      new ScatterPlot(pontos, p.getTag() + axes).plot();
-    }
+    // Mostra uma janela por versão (2 e 4 objetivos), quando existe ecrã.
+    if (!java.awt.GraphicsEnvironment.isHeadless()) for (var p : problemList) showParetoFront(p, output, data);
     return experiment;
   }
 
@@ -152,8 +139,8 @@ public final class NSGAIIStudy {
     }
     return algorithms;
   }
-  //Criar uma classe descendente do IntegerSBXCrossover, verificar se existem salas já alocadas...
 
+  /** Cria o NSGA-II (variante NSGAIIa) para um problema e uma execução independente. */
   private static void nsgaIIa(List<ExperimentAlgorithm<IntegerSolution, List<IntegerSolution>>> algorithms,
                               int run, ExperimentProblem<IntegerSolution> problem, StudyConfig config) {
     TimetableProblem timetable = (TimetableProblem) problem.getProblem();
@@ -166,5 +153,55 @@ public final class NSGAIIStudy {
             .setDominanceComparator(new DominanceWithConstraintsComparator<>())
             .setMaxEvaluations(config.maxEvaluations()).build();
     algorithms.add(new ExperimentAlgorithm<>(algorithm, "NSGAIIa", problem, run));
+  }
+
+  /**
+   * Abre uma janela com a frente de Pareto de uma versão do problema.
+   * Os dois gráficos usam os mesmos eixos, para poderem ser comparados:
+   * X = aulas em sala de tipo diferente do pedido; Y = total de lugares vazios.
+   * Cada ponto é um horário alternativo exportado (sem repetidos nem dominados).
+   */
+  private static void showParetoFront(ExperimentProblem<IntegerSolution> problem, Path output, DataSet data) {
+    try {
+      int objectives = problem.getProblem().numberOfObjectives();
+      Path summary = output.resolve("problemas").resolve(problem.getTag()).resolve("alternatives-summary.csv");
+      if (!Files.isRegularFile(summary)) summary = output.resolve("alternatives-summary.csv");
+      double[][] points = readFront(summary);
+      if (points.length == 0) return;
+
+      // Vermelho para 2 objetivos, azul para 4 objetivos; '@' desenha círculos cheios.
+      Canvas canvas = ScatterPlot.of(points, '@', objectives == 2 ? Color.RED : Color.BLUE).canvas();
+
+      // Margem à volta dos pontos, para nenhum ficar cortado na borda do gráfico.
+      double minX = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, minY = Double.MAX_VALUE, maxY = -Double.MAX_VALUE;
+      for (double[] q : points) {
+        minX = Math.min(minX, q[0]); maxX = Math.max(maxX, q[0]);
+        minY = Math.min(minY, q[1]); maxY = Math.max(maxY, q[1]);
+      }
+      double marginX = Math.max(1, 0.1 * (maxX - minX)), marginY = Math.max(50, 0.1 * (maxY - minY));
+      canvas.extendLowerBound(new double[]{minX - marginX, minY - marginY});
+      canvas.extendUpperBound(new double[]{maxX + marginX, maxY + marginY});
+
+      canvas.setTitle("Frente de Pareto - " + objectives + " objetivos (" + data.lessons().size() + " aulas, "
+              + points.length + (points.length == 1 ? " horário alternativo)" : " horários alternativos)"));
+      canvas.setAxisLabels("Aulas em sala de tipo diferente do pedido", "Lugares vazios (total)");
+      canvas.window().setTitle("Frente de Pareto - " + objectives + " objetivos");
+    } catch (Exception e) {
+      System.out.println("Não foi possível abrir o gráfico de " + problem.getTag() + ": " + e.getMessage());
+    }
+  }
+
+  /** Lê do alternatives-summary.csv o tipo errado (X) e os lugares vazios (Y) de cada alternativa. */
+  private static double[][] readFront(Path summary) throws IOException {
+    List<String> lines = Files.readAllLines(summary).stream().filter(l -> !l.isBlank()).toList();
+    List<String> header = List.of(lines.get(0).replace("\uFEFF", "").split(";"));
+    int type = header.indexOf("Tipo_sala_errado"), seats = header.indexOf("Lugares_vazios");
+    double[][] points = new double[lines.size() - 1][2];
+    for (int i = 1; i < lines.size(); i++) {
+      String[] cells = lines.get(i).split(";");
+      points[i - 1][0] = Double.parseDouble(cells[type]);
+      points[i - 1][1] = Double.parseDouble(cells[seats]);
+    }
+    return points;
   }
 }

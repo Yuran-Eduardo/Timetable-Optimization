@@ -10,8 +10,6 @@ A opção 01 de cada problema é a recomendada. `Comparacao-<data>-<identificado
 
 O JSON com o mesmo nome guarda configuração, objetivos e origem da execução. A data e o identificador distinguem as execuções; não representam a qualidade do resultado.
 
-`Horario-Referencia-V1.csv` e o respetivo JSON são uma referência histórica da primeira versão: 26 019 ocorrências, objetivo 0 de 14 391 e objetivo 1 de 0,2120042363. Esse modelo também alterava o dia e a hora e usava dois objetivos. Não é o resultado da implementação atual, nem um horário viável certificado. As métricas correspondem à execução 20261101-231434-879.
-
 Os CSVs/JSONs de futuras execuções são ignorados pelo Git, mas permanecem no disco para comparação. Só a referência V1 e este README entram no commit. Para partilhar outro resultado, adicioná-lo explicitamente ao Git após revisão ou enviá-lo separadamente por decisão do grupo.
 
 Os detalhes de cada estudo, incluindo vetores FUN/VAR, validação e estatísticas, ficam em Resultados/. RESULTADOS.txt na raiz indica o CSV mais recente.
